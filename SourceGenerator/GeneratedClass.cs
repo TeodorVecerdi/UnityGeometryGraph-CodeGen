@@ -56,6 +56,19 @@ namespace SourceGenerator {
             stringBuilder.AppendLine("using System;");
             stringBuilder.AppendLine("using Newtonsoft.Json;");
             stringBuilder.AppendLine("using Newtonsoft.Json.Linq;");
+            
+            foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
+                if (attribute.Name.ToString() == "AdditionalUsingStatements") {
+                    if (attribute.ArgumentList == null) {
+                        continue;
+                    }
+
+                    foreach (var arg in attribute.ArgumentList.Arguments) {
+                        var @namespace = GeneratorUtils.ExtractStringFromExpression(arg.Expression);
+                        stringBuilder.AppendLine($"using {@namespace};");
+                    }
+                }
+            }
 
             if (Fields.Any(field => field.TypeString is "float2" or "float3")) {
                 stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");

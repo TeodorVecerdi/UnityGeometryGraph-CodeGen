@@ -5,6 +5,15 @@ namespace SourceGeneratorsExperiment.GeneratorAPI {
     public class GenerateRuntimeNodeAttribute : Attribute {
     }
     
+    [AttributeUsage(AttributeTargets.Class)]
+    public class AdditionalUsingStatementsAttribute : Attribute {
+        public string[] Namespaces { get; }
+        
+        public AdditionalUsingStatementsAttribute(params string[] namespaces) {
+            Namespaces = namespaces;
+        }
+    }
+    
     [AttributeUsage(AttributeTargets.Method)]
     public class CalculatesFieldAttribute : Attribute {
         public string Field { get; }
