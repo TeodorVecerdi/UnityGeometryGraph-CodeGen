@@ -81,7 +81,7 @@ namespace SourceGenerator {
                     }
                     case "CustomEquality": {
                         CustomEquality = true;
-                        string equalityCodeString = arguments[0].Expression.ToString();
+                        string equalityCodeString = GeneratorUtils.ExtractStringFromExpression(arguments[0].Expression);
                         EqualityCode = equalityCodeString.Replace("{this}", Name);
                         break;
                     }
@@ -89,7 +89,7 @@ namespace SourceGenerator {
                     case "Setting": {
                         foreach (AttributeArgumentSyntax argument in arguments.Where(argument => argument.NameEquals != null)) {
                             string argName = argument.NameEquals.Name.Identifier.Text;
-                            string argValue = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                            string argValue = argument.Expression.ToString();
 
                             if (argValue != "false") continue;
                             
@@ -190,8 +190,8 @@ namespace SourceGenerator {
 
             switch (TypeString) {
                 case "bool": return $"{Name} ? 1 : 0,";
-                case "float2": return $"JsonSerializer.SerializeObject({Name}, GeometryGraph.Runtime.Serialization.float2Converter.Converter),";
-                case "float3": return $"JsonSerializer.SerializeObject({Name}, GeometryGraph.Runtime.Serialization.float3Converter.Converter),";
+                case "float2": return $"JsonConvert.SerializeObject({Name}, float2Converter.Converter),";
+                case "float3": return $"JsonConvert.SerializeObject({Name}, float3Converter.Converter),";
 
                 default: return $"{Name},";
             }
@@ -209,10 +209,8 @@ namespace SourceGenerator {
 
             switch (TypeString) {
                 case "bool": return $"{Name} = array.Value<int>({index}) == 1;";
-                case "float2":
-                    return $"{Name} = JsonSerializer.DeserializeObject<float2>(array.Value<string>({index}), GeometryGraph.Runtime.Serialization.float2Converter.Converter);";
-                case "float3":
-                    return $"{Name} = JsonSerializer.DeserializeObject<float3>(array.Value<string>({index}), GeometryGraph.Runtime.Serialization.float3Converter.Converter);";
+                case "float2": return $"{Name} = JsonConvert.DeserializeObject<float2>(array.Value<string>({index}), float2Converter.Converter);";
+                case "float3": return $"{Name} = JsonConvert.DeserializeObject<float3>(array.Value<string>({index}), float3Converter.Converter);";
 
                 default: return $"{Name} = array.Value<{TypeString}>({index});";
             }
@@ -236,6 +234,9 @@ namespace SourceGenerator {
                     return $"string.Equals({Name}, {otherVariableName}, StringComparison.InvariantCulture)";
                 case "float":
                     return $"Math.Abs({Name} - {otherVariableName}) < Constants.FLOAT_TOLERANCE";
+                case "float2":
+                case "float3":
+                    return $"math.distancesq({Name}, {otherVariableName}) < Constants.FLOAT_TOLERANCE * Constants.FLOAT_TOLERANCE";
 
                 default: return $"{Name} == {otherVariableName}";
             }
@@ -276,9 +277,9 @@ namespace SourceGenerator {
                     case PortFieldType.Float:
                     case PortFieldType.Boolean:
                     case PortFieldType.String:
+                    case PortFieldType.Vector:
                         return true;
 
-                    case PortFieldType.Vector:
                     case PortFieldType.Geometry:
                     case PortFieldType.Collection:
                     case PortFieldType.Curve:
@@ -298,13 +299,11 @@ namespace SourceGenerator {
                 case "bool":
                 case "string":
                 case "float":
-                    return true;
-
                 case "float2":
                 case "float3":
-                    return false;
+                    return true;
 
-                default: return true;
+                default: return false;
             }
         }
 

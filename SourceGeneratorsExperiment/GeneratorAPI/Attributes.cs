@@ -2,7 +2,7 @@
 
 namespace SourceGeneratorsExperiment.GeneratorAPI {
     [AttributeUsage(AttributeTargets.Class)]
-    public class GenerateNodeImplementationAttribute : Attribute {
+    public class GenerateRuntimeNodeAttribute : Attribute {
     }
     
     [AttributeUsage(AttributeTargets.Method)]
@@ -93,6 +93,7 @@ namespace SourceGeneratorsExperiment.GeneratorAPI {
     [AttributeUsage(AttributeTargets.Method)]
     public class GetterMethodAttribute : Attribute {
         public string Field { get; }
+        public bool Inline { get; set; }
         
         public GetterMethodAttribute(string field) {
             Field = field;

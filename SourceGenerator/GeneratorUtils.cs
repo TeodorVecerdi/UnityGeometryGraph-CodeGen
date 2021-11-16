@@ -1,9 +1,23 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
     public static class GeneratorUtils {
         public static string Indent(int level) => new(' ', level * 4);
+
+        public static string Indent(string text, int level) {
+            string[] lines = text.Trim().Split('\n');
+            int maxIndent = 0;
+            foreach (string line in lines) {
+                int indent = line.TakeWhile(c => c == ' ').Count();
+                if (indent > maxIndent) {
+                    maxIndent = indent / 4;
+                }
+            }
+            string indentString = Indent(level - maxIndent);
+            return indentString + string.Join("\n" + indentString, lines);
+        }
         
         public static string ToPascalCase(string name) {
             // remove any leading characters that are not letters
@@ -45,6 +59,14 @@ namespace SourceGenerator {
             }
 
             return null;
+        }
+
+        public static string InlineMethod(MethodDeclarationSyntax method) {
+            if (method.Body != null) {
+                return method.Body.ToString().Trim();
+            } else {
+                return method.ExpressionBody.Expression.ToString();
+            }
         }
     }
 }

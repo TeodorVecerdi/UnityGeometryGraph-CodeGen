@@ -1,7 +1,7 @@
 ﻿using SourceGeneratorsExperiment.GeneratorAPI;
 
 namespace SourceGeneratorsExperiment {
-    [GenerateNodeImplementation]
+    [GenerateRuntimeNode]
     public partial class SimpleClampFloatNode : RuntimeNode {
         [In] private float value;
         [In] private float min;

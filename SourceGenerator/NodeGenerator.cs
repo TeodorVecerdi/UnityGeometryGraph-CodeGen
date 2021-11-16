@@ -22,7 +22,7 @@ namespace SourceGenerator {
 
             foreach (SyntaxNode syntaxNode in context.Compilation.SyntaxTrees.SelectMany(tree => tree.GetRoot().DescendantNodes())) {
                 if (syntaxNode is ClassDeclarationSyntax { BaseList: { } } nodeClass &&
-                    nodeClass.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "GenerateNodeImplementation"))
+                    nodeClass.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "GenerateRuntimeNode"))
                 ) {
                     var generatedClass = new GeneratedClass(nodeClass);
                     var sourceCode = generatedClass.GetCode();

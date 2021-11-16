@@ -15,7 +15,7 @@ namespace SourceGenerator {
         public List<GeneratedField> Fields { get; }
         public Dictionary<string, HashSet<string>> UpdateMethods { get; }
         public HashSet<string> UpdateAllMethods { get; }
-        public Dictionary<string, string> GetterMethods { get; }
+        public Dictionary<string, GetterMethod> GetterMethods { get; }
 
         public GeneratedClass(ClassDeclarationSyntax classDeclarationSyntax) {
             this.classDeclarationSyntax = classDeclarationSyntax;
@@ -26,33 +26,43 @@ namespace SourceGenerator {
             Fields = new List<GeneratedField>();
             UpdateMethods = new Dictionary<string, HashSet<string>>();
             UpdateAllMethods = new HashSet<string>();
-            GetterMethods = new Dictionary<string, string>();
+            GetterMethods = new Dictionary<string, GetterMethod>();
 
             CollectFields();
             CollectMethods();
         }
 
         public string GetCode() {
-            const string usingStatements = @"using System;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;";
-            string portDeclarations = GetPortDeclarationsCode();
-            string portInitializers = GetPortInitializersCode();
-            string updateFromEditorNodeMethods = GetUpdateFromEditorNodeCode();
-            string serialization = GetSerializationCode();
-            string deserialization = GetDeserializationCode();
-            string postDeserialization = GetPostDeserializationCode();
-            string getValueForPort = GetGetValueForPortCode();
-            string onPortValueChanged = GetOnPortValueChangedCode();
-            string debugInfo = GetDebugInfoCode();
+            string usingStatements = GetUsingStatements().TrimEnd();
+            string portDeclarations = GetPortDeclarationsCode().TrimEnd();
+            string portInitializers = GetPortInitializersCode().TrimEnd();
+            string updateFromEditorNodeMethods = GetUpdateFromEditorNodeCode().TrimEnd();
+            string serialization = GetSerializationCode().TrimEnd();
+            string deserialization = GetDeserializationCode().TrimEnd();
+            string postDeserialization = GetPostDeserializationCode().TrimEnd();
+            string getValueForPort = GetGetValueForPortCode().TrimEnd();
+            string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
+            string debugInfo = $"\n\n/*\n{GetDebugInfoCode()}*/";
+            // string debugInfo = "";
 
-            return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers.TrimEnd(),
-                                 serialization.TrimEnd(), deserialization.TrimEnd(), postDeserialization.TrimEnd(),
-                                 updateFromEditorNodeMethods.TrimEnd(), getValueForPort.TrimEnd(),
-                                 onPortValueChanged.TrimEnd(), debugInfo.TrimEnd());
+            return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, deserialization,
+                                 postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged, debugInfo);
         }
 
         #region Code Generation
+
+        private string GetUsingStatements() {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("using System;");
+            stringBuilder.AppendLine("using Newtonsoft.Json;");
+            stringBuilder.AppendLine("using Newtonsoft.Json.Linq;");
+
+            if (Fields.Any(field => field.TypeString is "float2" or "float3")) {
+                stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");
+            }
+
+            return stringBuilder.ToString();
+        }
 
         private string GetPortDeclarationsCode() {
             var stringBuilder = new StringBuilder();
@@ -136,7 +146,8 @@ using Newtonsoft.Json.Linq;";
             var stringBuilder = new StringBuilder();
             foreach (GeneratedField field in Fields.Where(field => field.Kind == GeneratedFieldKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(field.Name)) {
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {field.PascalCaseName}Port) return {GetterMethods[field.Name]}();");
+                    var getterMethod = GetterMethods[field.Name];
+                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {field.PascalCaseName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
                 } else if (field.CustomGetter) {
                     stringBuilder.AppendLine(
                         $"{GeneratorUtils.Indent(3)}if (port == {field.PascalCaseName}Port) {{\n{GeneratorUtils.Indent(4)}{field.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
@@ -189,8 +200,8 @@ using Newtonsoft.Json.Linq;";
                 stringBuilder.AppendLine($"Method `{method}` updates all [Out] fields");
             }
 
-            foreach (KeyValuePair<string, string> pair in GetterMethods) {
-                stringBuilder.AppendLine($"Method `{pair.Value}` returns value of field `{pair.Key}`");
+            foreach (KeyValuePair<string, GetterMethod> pair in GetterMethods) {
+                stringBuilder.AppendLine($"Method `{pair.Value.MethodName}` returns value of field `{pair.Key}`\nInline: {pair.Value.Inline}\nSource code:\n{pair.Value.Body}");
             }
 
             return stringBuilder.ToString();
@@ -202,7 +213,7 @@ using Newtonsoft.Json.Linq;";
 
         private void CollectFields() {
             List<FieldDeclarationSyntax> fieldDeclarations = classDeclarationSyntax.Members.OfType<FieldDeclarationSyntax>().ToList();
-            
+
             // [In] fields
             Fields.AddRange(
                 fieldDeclarations
@@ -211,7 +222,7 @@ using Newtonsoft.Json.Linq;";
                                          .Any(attr => attr.Name.ToString() == "In"))
                     .Select(field => new GeneratedField(field, GeneratedFieldKind.InputPort))
             );
-            
+
             // [Out] fields
             Fields.AddRange(
                 fieldDeclarations
@@ -220,7 +231,7 @@ using Newtonsoft.Json.Linq;";
                                          .Any(attr => attr.Name.ToString() == "Out"))
                     .Select(field => new GeneratedField(field, GeneratedFieldKind.OutputPort))
             );
-            
+
             // [Setting] fields
             Fields.AddRange(
                 fieldDeclarations
@@ -263,8 +274,17 @@ using Newtonsoft.Json.Linq;";
                             if (string.IsNullOrEmpty(fieldName)) {
                                 continue;
                             }
-
-                            GetterMethods[fieldName] = method.Identifier.Text;
+                            
+                            bool inline = false;
+                            if (arguments.Count > 1) {
+                                NameEqualsSyntax nameEqualsSyntax = arguments[1].NameEquals;
+                                if (nameEqualsSyntax != null && nameEqualsSyntax.Name.Identifier.Text == "Inline") {
+                                    inline = arguments[1].Expression.ToString() == "true";
+                                }
+                            }
+                            
+                            string body = GeneratorUtils.InlineMethod(method);
+                            GetterMethods[fieldName] = new GetterMethod(method.Identifier.Text, inline, body, method.ExpressionBody != null);
 
                             break;
                         }

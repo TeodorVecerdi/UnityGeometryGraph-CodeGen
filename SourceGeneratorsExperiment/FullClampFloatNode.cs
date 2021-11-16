@@ -1,7 +1,7 @@
 ﻿using SourceGeneratorsExperiment.GeneratorAPI;
 
 namespace SourceGeneratorsExperiment {
-    [GenerateNodeImplementation]
+    [GenerateRuntimeNode]
     public partial class FullClampFloatNode : RuntimeNode {
         [In]
         private float input;
