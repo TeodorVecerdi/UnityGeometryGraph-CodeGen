@@ -4,10 +4,21 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
     public static class GeneratorUtils {
+        /// <summary>
+        /// Returns a string of spaces of length 4 * <paramref name="level"/>.
+        /// </summary>
         public static string Indent(int level) => new(' ', level * 4);
-
+        
+        /// <summary>
+        /// Changes the indentation of <paramref name="text"/> to be at level <paramref name="level"/>.
+        /// </summary>
+        /// <param name="text">The text to indent.</param>
+        /// <param name="level">The level to indent to.</param>
+        /// <returns><paramref name="text"/> indented to level <paramref name="level"/>.</returns>
         public static string Indent(string text, int level) {
             string[] lines = text.Trim().Split('\n');
+            
+            // Find the maximum indentation level of all lines
             int maxIndent = 0;
             foreach (string line in lines) {
                 int indent = line.TakeWhile(c => c == ' ').Count();
@@ -15,10 +26,22 @@ namespace SourceGenerator {
                     maxIndent = indent / 4;
                 }
             }
+            // Indent all lines by level - maxIndent
             string indentString = Indent(level - maxIndent);
             return indentString + string.Join("\n" + indentString, lines);
         }
         
+        /// <summary>
+        /// Capitalizes the first letter of <paramref name="name"/> and removes any leading characters that are not letters.
+        /// </summary>
+        /// <param name="name">The name to convert.</param>
+        /// <returns>The name capitalized and with any leading characters that are not letters removed.</returns>
+        /// <example>
+        /// <code>
+        /// ToPascalCase("hello") == "Hello"
+        /// ToPascalCase("_012_hello") == "Hello"
+        /// </code>
+        /// </example>
         public static string ToPascalCase(string name) {
             // remove any leading characters that are not letters
             name = Regex.Replace(name, @"^([^a-zA-Z]*)(.*)", "$2");
@@ -26,7 +49,18 @@ namespace SourceGenerator {
             // Convert to PascalCase
             return char.ToUpper(name[0]) + name.Substring(1);
         }
-
+        
+        /// <summary>
+        /// Converts a type name to the equivalent PortPropertyType enum.
+        /// </summary>
+        /// <param name="type">The type to convert.</param>
+        /// <returns>The equivalent PortPropertyType enum.</returns>
+        /// <example>
+        /// <code>
+        /// GetPortType("int") == PortPropertyType.Integer
+        /// GetPortType("float") == PortPropertyType.Float
+        /// </code>
+        /// </example>
         public static PortPropertyType GetPortType(string type) {
             switch (type) {
                 case "int":                return PortPropertyType.Integer;
@@ -40,7 +74,15 @@ namespace SourceGenerator {
                 default: return PortPropertyType.Unknown;
             }
         }
-
+       
+        /// <summary>
+        /// Extracts the name of a variable from an expression.
+        /// </summary>
+        /// <param name="expression">The expression to extract the name from.</param>
+        /// <returns>The name of the variable.</returns>
+        /// <remarks>
+        /// This method works on expressions of the form: <c>nameof(variable)</c>, <c>"variable"</c>
+        /// </remarks>
         public static string ExtractNameFromExpression(ExpressionSyntax expression) {
             string expressionString = expression.ToString();
             if (expressionString.StartsWith("nameof")) {
@@ -49,7 +91,18 @@ namespace SourceGenerator {
 
             return ExtractStringFromExpression(expression);
         }
-
+        
+        /// <summary>
+        /// Extracts a string from an expression.
+        /// </summary>
+        /// <param name="expression">The expression to extract the string from.</param>
+        /// <returns>The string that the expression represents.</returns>
+        /// <example>
+        /// <code>
+        /// ExtractStringFromExpression("\"hello\"") == "hello"
+        /// ExtractStringFromExpression("@\"hello\"") == "hello"
+        /// </code>
+        /// </example>
         public static string ExtractStringFromExpression(ExpressionSyntax expression) {
             string expressionString = expression.ToString();
             if (expressionString.StartsWith("\"") || expressionString.StartsWith("@\"")) {
@@ -60,13 +113,14 @@ namespace SourceGenerator {
 
             return null;
         }
-
+        
+        /// <summary>
+        /// Returns the body of the method, or the expression body if the method has no body.
+        /// </summary>
+        /// <param name="method">The method to extract the body from.</param>
+        /// <returns>The body of the method, or the expression body if the method has no body.</returns>
         public static string InlineMethod(MethodDeclarationSyntax method) {
-            if (method.Body != null) {
-                return method.Body.ToString().Trim();
-            } else {
-                return method.ExpressionBody.Expression.ToString();
-            }
+            return method.Body != null ? method.Body.ToString().Trim() : method.ExpressionBody.Expression.ToString();
         }
     }
 }
