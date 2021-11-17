@@ -1,8 +1,6 @@
-﻿using SourceGeneratorsExperiment;
-
-namespace SourceGeneratorsExperiment {
+﻿namespace SourceGeneratorsExperiment {
     [GenerateRuntimeNode]
-    public partial class SimpleClampFloatNode : RuntimeNode {
+    public partial class GenClampFloatNode : RuntimeNode {
         [In] private float value;
         [In] private float min;
         [In] private float max;

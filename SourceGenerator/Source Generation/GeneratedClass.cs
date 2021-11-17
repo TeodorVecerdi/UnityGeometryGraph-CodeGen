@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -12,7 +10,8 @@ namespace SourceGenerator {
 
         public string ClassName { get; }
         public string NamespaceName { get; }
-        public string RelativePath { get; }
+        public string FilePath { get; }
+        public string OutputRelativePath { get; }
 
         public List<GeneratedProperty> Properties { get; }
         
@@ -23,8 +22,9 @@ namespace SourceGenerator {
         public GeneratedClass(ClassDeclarationSyntax classDeclarationSyntax) {
             this.classDeclarationSyntax = classDeclarationSyntax;
 
-            NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
             ClassName = classDeclarationSyntax.Identifier.Text;
+            NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
+            FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
 
             Properties = new List<GeneratedProperty>();
             UpdateMethods = new Dictionary<string, HashSet<string>>();
@@ -32,14 +32,14 @@ namespace SourceGenerator {
             GetterMethods = new Dictionary<string, GetterMethod>();
             
             // Get relative path from [GenerateRuntimeNode] attribute
-            RelativePath = "";
+            OutputRelativePath = "";
             foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.Name.ToString() != "GenerateRuntimeNode" || attribute.ArgumentList == null) continue;
                 
                 string argName = attribute.ArgumentList.Arguments[0].NameEquals.Name.Identifier.Text;
                 string argValue = GeneratorUtils.ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
                 if (argName == "OutputPath") {
-                    RelativePath = argValue;
+                    OutputRelativePath = argValue;
                 }
             }
 

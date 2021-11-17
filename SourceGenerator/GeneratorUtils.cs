@@ -122,5 +122,9 @@ namespace SourceGenerator {
         public static string InlineMethod(MethodDeclarationSyntax method) {
             return method.Body != null ? method.Body.ToString().Trim() : method.ExpressionBody.Expression.ToString();
         }
+
+        public static string GetQualifiedClassName(GeneratedClass generatedClass) {
+            return $"{generatedClass.NamespaceName}::{generatedClass.ClassName}";
+        }
     }
 }
