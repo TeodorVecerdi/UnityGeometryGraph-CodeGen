@@ -306,26 +306,8 @@ namespace SourceGenerator {
         #region Checks
 
         private bool CanGenerateEquality() {
+            if (CustomEquality) return true;
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
-
-            if (Kind == GeneratedPropertyKind.InputPort) {
-                switch (PortType) {
-                    case PortPropertyType.Integer:
-                    case PortPropertyType.Float:
-                    case PortPropertyType.Boolean:
-                    case PortPropertyType.String:
-                    case PortPropertyType.Vector:
-                        return true;
-
-                    case PortPropertyType.Geometry:
-                    case PortPropertyType.Collection:
-                    case PortPropertyType.Curve:
-                    case PortPropertyType.Unknown:
-                        return false;
-
-                    default: throw new ArgumentOutOfRangeException();
-                }
-            }
 
             if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
@@ -347,25 +329,6 @@ namespace SourceGenerator {
         private bool CanGenerateUpdateFromEditorMethod() {
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
 
-            if (Kind == GeneratedPropertyKind.InputPort) {
-                switch (PortType) {
-                    case PortPropertyType.Integer:
-                    case PortPropertyType.Float:
-                    case PortPropertyType.Boolean:
-                    case PortPropertyType.String:
-                    case PortPropertyType.Vector:
-                        return true;
-
-                    case PortPropertyType.Geometry:
-                    case PortPropertyType.Collection:
-                    case PortPropertyType.Curve:
-                    case PortPropertyType.Unknown:
-                        return false;
-
-                    default: throw new ArgumentOutOfRangeException();
-                }
-            }
-
             if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
             }
@@ -386,25 +349,6 @@ namespace SourceGenerator {
         private bool CanGenerateSerialization() {
             if (CustomSerialization) return true;
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
-
-            if (Kind == GeneratedPropertyKind.InputPort) {
-                switch (PortType) {
-                    case PortPropertyType.Integer:
-                    case PortPropertyType.Float:
-                    case PortPropertyType.Boolean:
-                    case PortPropertyType.String:
-                    case PortPropertyType.Vector:
-                        return true;
-
-                    case PortPropertyType.Geometry:
-                    case PortPropertyType.Collection:
-                    case PortPropertyType.Curve:
-                    case PortPropertyType.Unknown:
-                        return false;
-
-                    default: throw new ArgumentOutOfRangeException();
-                }
-            }
 
             if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
