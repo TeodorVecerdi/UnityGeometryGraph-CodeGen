@@ -12,7 +12,7 @@ namespace SourceGenerator {
         public string ClassName { get; }
         public string NamespaceName { get; }
 
-        public List<GeneratedField> Fields { get; }
+        public List<GeneratedProperty> Properties { get; }
         public Dictionary<string, HashSet<string>> UpdateMethods { get; }
         public HashSet<string> UpdateAllMethods { get; }
         public Dictionary<string, GetterMethod> GetterMethods { get; }
@@ -23,12 +23,12 @@ namespace SourceGenerator {
             NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
             ClassName = classDeclarationSyntax.Identifier.Text;
 
-            Fields = new List<GeneratedField>();
+            Properties = new List<GeneratedProperty>();
             UpdateMethods = new Dictionary<string, HashSet<string>>();
             UpdateAllMethods = new HashSet<string>();
             GetterMethods = new Dictionary<string, GetterMethod>();
 
-            CollectFields();
+            CollectProperties();
             CollectMethods();
         }
 
@@ -70,7 +70,7 @@ namespace SourceGenerator {
                 }
             }
 
-            if (Fields.Any(field => field.TypeString is "float2" or "float3")) {
+            if (Properties.Any(property => property.TypeString is "float2" or "float3")) {
                 stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");
             }
 
@@ -79,8 +79,8 @@ namespace SourceGenerator {
 
         private string GetPortDeclarationsCode() {
             var stringBuilder = new StringBuilder();
-            foreach (GeneratedField field in Fields.Where(field => field.Kind != GeneratedFieldKind.Setting)) {
-                stringBuilder.AppendLine(field.GetPortPropertyDeclaration());
+            foreach (GeneratedProperty property in Properties.Where(property => property.Kind != GeneratedPropertyKind.Setting)) {
+                stringBuilder.AppendLine(property.GetPortPropertyDeclaration());
             }
 
             return stringBuilder.ToString();
@@ -88,8 +88,8 @@ namespace SourceGenerator {
 
         private string GetPortInitializersCode() {
             var stringBuilder = new StringBuilder();
-            foreach (GeneratedField field in Fields.Where(field => field.Kind != GeneratedFieldKind.Setting)) {
-                stringBuilder.AppendLine(field.GetPortCtorDeclaration());
+            foreach (GeneratedProperty property in Properties.Where(property => property.Kind != GeneratedPropertyKind.Setting)) {
+                stringBuilder.AppendLine(property.GetPortCtorDeclaration());
             }
 
             return stringBuilder.ToString();
@@ -98,10 +98,10 @@ namespace SourceGenerator {
         private string GetUpdateFromEditorNodeCode() {
             var stringBuilder = new StringBuilder();
 
-            foreach (GeneratedField field in Fields.Where(field => field.GenerateUpdateFromEditorMethod)) {
-                var fieldCalculateMethods = GetCalculateMethodsFor(field, 3);
-                var fieldNotifyMethods = GetNotifyMethodsFor(field, 3);
-                stringBuilder.AppendLine($"{field.GetUpdateFromEditorNodeMethod(fieldCalculateMethods, fieldNotifyMethods)}\n");
+            foreach (GeneratedProperty property in Properties.Where(property => property.GenerateUpdateFromEditorMethod)) {
+                var propertyCalculateMethods = GetCalculateMethodsFor(property, 3);
+                var propertyNotifyMethods = GetNotifyMethodsFor(property, 3);
+                stringBuilder.AppendLine($"{property.GetUpdateFromEditorNodeMethod(propertyCalculateMethods, propertyNotifyMethods)}\n");
             }
 
             return stringBuilder.ToString();
@@ -109,8 +109,8 @@ namespace SourceGenerator {
 
         private string GetSerializationCode() {
             var stringBuilder = new StringBuilder();
-            foreach (GeneratedField field in Fields.Where(field => field.GenerateSerialization)) {
-                stringBuilder.AppendLine(field.GetSerializationCode());
+            foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
+                stringBuilder.AppendLine(property.GetSerializationCode());
             }
 
             return stringBuilder.ToString();
@@ -119,8 +119,8 @@ namespace SourceGenerator {
         private string GetDeserializationCode() {
             var stringBuilder = new StringBuilder();
             int serializationIndex = 0;
-            foreach (GeneratedField field in Fields.Where(field => field.GenerateSerialization)) {
-                stringBuilder.AppendLine(field.GetDeserializationCode(serializationIndex));
+            foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
+                stringBuilder.AppendLine(property.GetDeserializationCode(serializationIndex));
                 serializationIndex++;
             }
 
@@ -148,8 +148,8 @@ namespace SourceGenerator {
             }
 
             // Notify port value changed
-            foreach (GeneratedField field in Fields.Where(field => field.Kind == GeneratedFieldKind.OutputPort)) {
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({field.PascalCaseName}Port);");
+            foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.PascalCaseName}Port);");
             }
 
             return stringBuilder.ToString();
@@ -157,15 +157,15 @@ namespace SourceGenerator {
 
         private string GetGetValueForPortCode() {
             var stringBuilder = new StringBuilder();
-            foreach (GeneratedField field in Fields.Where(field => field.Kind == GeneratedFieldKind.OutputPort)) {
-                if (GetterMethods.ContainsKey(field.Name)) {
-                    var getterMethod = GetterMethods[field.Name];
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {field.PascalCaseName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
-                } else if (field.CustomGetter) {
+            foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
+                if (GetterMethods.ContainsKey(property.Name)) {
+                    var getterMethod = GetterMethods[property.Name];
+                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.PascalCaseName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
+                } else if (property.CustomGetter) {
                     stringBuilder.AppendLine(
-                        $"{GeneratorUtils.Indent(3)}if (port == {field.PascalCaseName}Port) {{\n{GeneratorUtils.Indent(4)}{field.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
+                        $"{GeneratorUtils.Indent(3)}if (port == {property.PascalCaseName}Port) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
                 } else {
-                    stringBuilder.AppendLine(field.GetGetValueForPortCode());
+                    stringBuilder.AppendLine(property.GetGetValueForPortCode());
                 }
             }
 
@@ -176,17 +176,17 @@ namespace SourceGenerator {
             var stringBuilder = new StringBuilder();
 
             // Add if (port == outputPortA || ...) return;
-            if (Fields.Any(field => field.Kind == GeneratedFieldKind.OutputPort)) {
+            if (Properties.Any(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 stringBuilder.AppendLine(
-                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Fields.Where(field => field.Kind == GeneratedFieldKind.OutputPort).Select(field => $"port == {field.PascalCaseName}Port"))}) return;");
+                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PascalCaseName}Port"))}) return;");
             }
 
             // Add individual ifs joined by ` else `
-            if (Fields.Any(field => field.Kind == GeneratedFieldKind.InputPort)) {
-                string notify = string.Join(" else ", Fields.Where(field => field.Kind == GeneratedFieldKind.InputPort).Select(field => {
-                    string fieldCalculateMethods = GetCalculateMethodsFor(field, 4);
-                    string fieldNotifyMethods = GetNotifyMethodsFor(field, 4);
-                    return field.GetOnPortValueChangedCode(fieldCalculateMethods, fieldNotifyMethods);
+            if (Properties.Any(property => property.Kind == GeneratedPropertyKind.InputPort)) {
+                string notify = string.Join(" else ", Properties.Where(property => property.Kind == GeneratedPropertyKind.InputPort).Select(property => {
+                    string propertyCalculateMethods = GetCalculateMethodsFor(property, 4);
+                    string propertyNotifyMethods = GetNotifyMethodsFor(property, 4);
+                    return property.GetOnPortValueChangedCode(propertyCalculateMethods, propertyNotifyMethods);
                 }));
                 stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}{notify}");
             }
@@ -197,24 +197,24 @@ namespace SourceGenerator {
         private string GetDebugInfoCode() {
             var stringBuilder = new StringBuilder();
 
-            foreach (GeneratedField field in Fields) {
-                stringBuilder.AppendLine(field.GetDebugCode());
+            foreach (GeneratedProperty property in Properties) {
+                stringBuilder.AppendLine(property.GetDebugCode());
             }
 
             foreach (KeyValuePair<string, HashSet<string>> pair in UpdateMethods) {
                 if (pair.Key == "") {
-                    stringBuilder.AppendLine($"Methods `{string.Join(", ", pair.Value)}` update unknown field");
+                    stringBuilder.AppendLine($"Methods `{string.Join(", ", pair.Value)}` update unknown property");
                 } else {
-                    stringBuilder.AppendLine($"Methods `{string.Join(", ", pair.Value)}` update field `{pair.Key}`");
+                    stringBuilder.AppendLine($"Methods `{string.Join(", ", pair.Value)}` update property `{pair.Key}`");
                 }
             }
 
             foreach (string method in UpdateAllMethods) {
-                stringBuilder.AppendLine($"Method `{method}` updates all [Out] fields");
+                stringBuilder.AppendLine($"Method `{method}` updates all [Out] properties");
             }
 
             foreach (KeyValuePair<string, GetterMethod> pair in GetterMethods) {
-                stringBuilder.AppendLine($"Method `{pair.Value.MethodName}` returns value of field `{pair.Key}`\nInline: {pair.Value.Inline}\nSource code:\n{pair.Value.Body}");
+                stringBuilder.AppendLine($"Method `{pair.Value.MethodName}` returns value of property `{pair.Key}`\nInline: {pair.Value.Inline}\nSource code:\n{pair.Value.Body}");
             }
 
             return stringBuilder.ToString();
@@ -224,34 +224,34 @@ namespace SourceGenerator {
 
         #region Information Collection
 
-        private void CollectFields() {
-            List<FieldDeclarationSyntax> fieldDeclarations = classDeclarationSyntax.Members.OfType<FieldDeclarationSyntax>().ToList();
+        private void CollectProperties() {
+            List<PropertyDeclarationSyntax> propertyDeclarations = classDeclarationSyntax.Members.OfType<PropertyDeclarationSyntax>().ToList();
 
-            // [In] fields
-            Fields.AddRange(
-                fieldDeclarations
-                    .Where(field => field.AttributeLists
+            // [In] properties
+            Properties.AddRange(
+                propertyDeclarations
+                    .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "In"))
-                    .Select(field => new GeneratedField(field, GeneratedFieldKind.InputPort))
+                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.InputPort))
             );
 
-            // [Out] fields
-            Fields.AddRange(
-                fieldDeclarations
-                    .Where(field => field.AttributeLists
+            // [Out] properties
+            Properties.AddRange(
+                propertyDeclarations
+                    .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "Out"))
-                    .Select(field => new GeneratedField(field, GeneratedFieldKind.OutputPort))
+                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.OutputPort))
             );
 
-            // [Setting] fields
-            Fields.AddRange(
-                fieldDeclarations
-                    .Where(field => field.AttributeLists
+            // [Setting] properties
+            Properties.AddRange(
+                propertyDeclarations
+                    .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "Setting"))
-                    .Select(field => new GeneratedField(field, GeneratedFieldKind.Setting))
+                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.Setting))
             );
         }
 
@@ -261,7 +261,7 @@ namespace SourceGenerator {
                 foreach (AttributeSyntax attribute in method.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                     string attributeName = attribute.Name.ToString();
 
-                    if (attributeName == "CalculatesAllFields" || attributeName == "CalculatesField" && attribute.ArgumentList == null) {
+                    if (attributeName == "CalculatesAllProperties" || attributeName == "CalculatesProperty" && attribute.ArgumentList == null) {
                         UpdateAllMethods.Add(method.Identifier.Text);
                         continue;
                     }
@@ -271,8 +271,8 @@ namespace SourceGenerator {
                     if (arguments.Count == 0) continue;
 
                     switch (attributeName) {
-                        case "CalculatesField": {
-                            string variableName = GeneratorUtils.ExtractFieldNameFromExpression(arguments[0].Expression);
+                        case "CalculatesProperty": {
+                            string variableName = GeneratorUtils.ExtractNameFromExpression(arguments[0].Expression);
                             if (string.IsNullOrEmpty(variableName)) continue;
 
                             if (!UpdateMethods.ContainsKey(variableName)) {
@@ -283,8 +283,8 @@ namespace SourceGenerator {
                             break;
                         }
                         case "GetterMethod": {
-                            string fieldName = GeneratorUtils.ExtractFieldNameFromExpression(arguments[0].Expression);
-                            if (string.IsNullOrEmpty(fieldName)) {
+                            string propertyName = GeneratorUtils.ExtractNameFromExpression(arguments[0].Expression);
+                            if (string.IsNullOrEmpty(propertyName)) {
                                 continue;
                             }
                             
@@ -297,7 +297,7 @@ namespace SourceGenerator {
                             }
                             
                             string body = GeneratorUtils.InlineMethod(method);
-                            GetterMethods[fieldName] = new GetterMethod(method.Identifier.Text, inline, body, method.ExpressionBody != null);
+                            GetterMethods[propertyName] = new GetterMethod(method.Identifier.Text, inline, body, method.ExpressionBody != null);
 
                             break;
                         }
@@ -310,7 +310,7 @@ namespace SourceGenerator {
 
         #region Utility methods
 
-        private string GetCalculateMethodsFor(GeneratedField field, int indent) {
+        private string GetCalculateMethodsFor(GeneratedProperty property, int indent) {
             string indentString = GeneratorUtils.Indent(indent);
             var stringBuilder = new StringBuilder();
 
@@ -318,7 +318,7 @@ namespace SourceGenerator {
                 stringBuilder.AppendLine($"{indentString}{method}();");
             }
 
-            if (field.UpdatesAllFields) {
+            if (property.UpdatesAllProperties) {
                 foreach (KeyValuePair<string, HashSet<string>> pair in UpdateMethods) {
                     if (pair.Key == "") continue;
                     foreach (string method in pair.Value) {
@@ -329,10 +329,10 @@ namespace SourceGenerator {
                 return stringBuilder.ToString();
             }
 
-            foreach (string updatedField in field.UpdatesFields) {
-                if (!UpdateMethods.ContainsKey(updatedField)) continue;
+            foreach (string updatedProperty in property.UpdatesProperties) {
+                if (!UpdateMethods.ContainsKey(updatedProperty)) continue;
 
-                foreach (string method in UpdateMethods[updatedField]) {
+                foreach (string method in UpdateMethods[updatedProperty]) {
                     stringBuilder.AppendLine($"{indentString}{method}();");
                 }
             }
@@ -340,13 +340,13 @@ namespace SourceGenerator {
             return stringBuilder.ToString();
         }
 
-        private string GetNotifyMethodsFor(GeneratedField field, int indent) {
+        private string GetNotifyMethodsFor(GeneratedProperty property, int indent) {
             string indentString = GeneratorUtils.Indent(indent);
             var stringBuilder = new StringBuilder();
 
-            foreach (GeneratedField notifiedField in Fields.Where(otherField => otherField.Kind == GeneratedFieldKind.OutputPort)) {
-                if (field.UpdatesAllFields || field.UpdatesFields.Contains(notifiedField.Name)) {
-                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedField.PascalCaseName}Port);");
+            foreach (GeneratedProperty notifiedProperty in Properties.Where(otherProperty => otherProperty.Kind == GeneratedPropertyKind.OutputPort)) {
+                if (property.UpdatesAllProperties || property.UpdatesProperties.Contains(notifiedProperty.Name)) {
+                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedProperty.PascalCaseName}Port);");
                 }
             }
 

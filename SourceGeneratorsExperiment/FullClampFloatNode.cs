@@ -5,12 +5,12 @@ namespace SourceGeneratorsExperiment {
     public partial class FullClampFloatNode : RuntimeNode {
         [In]
         private float input;
-        [In, UpdatesFields(nameof(result))]
+        [In, UpdatesProperties(nameof(result))]
         private float min;
-        [In, UpdatesFields(nameof(otherResult))]
+        [In, UpdatesProperties(nameof(otherResult))]
         private float max;
         
-        [Out, Getter(@"return 1.0f + {field};")]
+        [Out, Getter(@"return 1.0f + {self};")]
         private float result;
         [Out]
         private float otherResult;
@@ -20,7 +20,7 @@ namespace SourceGeneratorsExperiment {
             return otherResult;
         }
 
-        [CalculatesField(nameof(result))]
+        [CalculatesProperty(nameof(result))]
         public void CalculateResult() {
             if (input < min) {
                 result = min;
@@ -31,7 +31,7 @@ namespace SourceGeneratorsExperiment {
             }
         }
         
-        [CalculatesField("result")]
+        [CalculatesProperty("result")]
         public void CalculateResult2() {
             if (input < min) {
                 result = min;
@@ -42,7 +42,7 @@ namespace SourceGeneratorsExperiment {
             }
         }
 
-        [CalculatesField, CalculatesAllFields]
+        [CalculatesProperty, CalculatesAllProperties]
         public void CalculateAll() {
             CalculateResult();
         }

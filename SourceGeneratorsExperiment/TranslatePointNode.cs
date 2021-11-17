@@ -11,7 +11,7 @@ namespace SourceGeneratorsExperiment {
         [Setting] private TranslatePointNode_Mode mode;
         [Out] private GeometryData result;
 
-        [CalculatesField(nameof(result))]
+        [CalculatesProperty(nameof(result))]
         private void Calculate() {
             // TODO: Implement
         }

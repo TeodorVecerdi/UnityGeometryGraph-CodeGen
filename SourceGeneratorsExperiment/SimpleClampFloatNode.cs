@@ -9,7 +9,7 @@ namespace SourceGeneratorsExperiment {
         [Out] private float result;
 
 
-        [CalculatesField(nameof(result))]
+        [CalculatesProperty(nameof(result))]
         private void Calculate() {
             if (value < min) {
                 result = min;

@@ -5,14 +5,14 @@ namespace GeometryGraph.Runtime.Graph {
     [GenerateRuntimeNode]
     [AdditionalUsingStatements("SourceGeneratorsExperiment", "GeometryGraph.Runtime.Serialization")]
     public partial class FloatBranchNode : RuntimeNode {
-        [In] private bool condition;
-        [In] private float ifTrue;
-        [In] private float ifFalse;
-        [Out] private float result;
+        [In] public bool Condition { get; private set; }
+        [In] public float IfTrue { get; private set; }
+        [In] public float IfFalse { get; private set; }
+        [Out] public float Result { get; private set; }
 
-        [GetterMethod(nameof(result), Inline = true)]
+        [GetterMethod(nameof(Result), Inline = true)]
         private float GetResult() {
-            return condition ? ifTrue : ifFalse;
+            return Condition ? IfTrue : IfFalse;
         }
     }
 }

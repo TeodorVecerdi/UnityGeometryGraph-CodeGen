@@ -27,21 +27,21 @@ namespace SourceGenerator {
             return char.ToUpper(name[0]) + name.Substring(1);
         }
 
-        public static PortFieldType GetPortType(string type) {
+        public static PortPropertyType GetPortType(string type) {
             switch (type) {
-                case "int":                return PortFieldType.Integer;
-                case "float":              return PortFieldType.Float;
-                case "float3":             return PortFieldType.Vector;
-                case "bool":               return PortFieldType.Boolean;
-                case "GeometryData":       return PortFieldType.Geometry;
-                case "List<GeometryData>": return PortFieldType.Collection;
-                case "string":             return PortFieldType.String;
-                case "CurveData":          return PortFieldType.Curve;
-                default: return PortFieldType.Unknown;
+                case "int":                return PortPropertyType.Integer;
+                case "float":              return PortPropertyType.Float;
+                case "float3":             return PortPropertyType.Vector;
+                case "bool":               return PortPropertyType.Boolean;
+                case "GeometryData":       return PortPropertyType.Geometry;
+                case "List<GeometryData>": return PortPropertyType.Collection;
+                case "string":             return PortPropertyType.String;
+                case "CurveData":          return PortPropertyType.Curve;
+                default: return PortPropertyType.Unknown;
             }
         }
 
-        public static string ExtractFieldNameFromExpression(ExpressionSyntax expression) {
+        public static string ExtractNameFromExpression(ExpressionSyntax expression) {
             string expressionString = expression.ToString();
             if (expressionString.StartsWith("nameof")) {
                 return expressionString.Substring(7, expressionString.Length - 8);
