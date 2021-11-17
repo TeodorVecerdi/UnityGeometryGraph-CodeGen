@@ -12,7 +12,7 @@ namespace SourceGenerator {
     [Generator]
     public class NodeGenerator : ISourceGenerator {
         public void Initialize(GeneratorInitializationContext context) {
-            GeneratorContext.NodeTypes = new ConcurrentBag<GeneratedClass>();
+            GeneratorContext.NodeTypes = new ConcurrentBag<ClassDeclarationSyntax>();
             GeneratorContext.EnumTypes = new ConcurrentDictionary<string, string>();
             GeneratorContext.GeneratedFiles = new ConcurrentBag<GeneratedFile>();
             GeneratorContext.GeneratedFilesByName = new ConcurrentDictionary<string, GeneratedFile>();
@@ -26,8 +26,11 @@ namespace SourceGenerator {
         }
 
         private static void Generate(GeneratorExecutionContext context) {
-            foreach (GeneratedClass generatedClass in GeneratorContext.NodeTypes) {
+            GeneratorContext.GeneratedClasses = new ConcurrentBag<GeneratedClass>();
+            foreach (ClassDeclarationSyntax nodeType in GeneratorContext.NodeTypes) {
+                var generatedClass = new GeneratedClass(nodeType);
                 generatedClass.AssemblyName = context.Compilation.AssemblyName;
+                GeneratorContext.GeneratedClasses.Add(generatedClass);
 
                 // Output path
                 string filePath = generatedClass.FilePath;
@@ -60,7 +63,7 @@ namespace SourceGenerator {
 
         private static void CleanupOldFiles() {
             var generatedFiles = new HashSet<string>();
-            foreach (GeneratedClass generatedClass in GeneratorContext.NodeTypes) {
+            foreach (GeneratedClass generatedClass in GeneratorContext.GeneratedClasses) {
                 generatedFiles.Add(GeneratorUtils.GetQualifiedClassName(generatedClass));
             }
             
@@ -96,7 +99,7 @@ namespace SourceGenerator {
                 }
                 case ClassDeclarationSyntax cd: {
                     if (cd.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "GenerateRuntimeNode")))
-                        GeneratorContext.NodeTypes.Add(new GeneratedClass(cd));
+                        GeneratorContext.NodeTypes.Add(cd);
                     else if (cd.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "SourceClass"))) {
                         var generatedFile = new GeneratedFile(cd);
                         GeneratorContext.GeneratedFiles.Add(generatedFile);
