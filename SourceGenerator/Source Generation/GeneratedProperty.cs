@@ -219,8 +219,9 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
-                return $"(int){Name},";
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+                string backingType = GeneratorContext.EnumTypes[Type];
+                return $"({backingType}){Name},";
             }
 
             switch (Type) {
@@ -238,8 +239,9 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
-                return $"{Name} = ({Type}) array.Value<int>({index});";
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+                string backingType = GeneratorContext.EnumTypes[Type];
+                return $"{Name} = ({Type}) array.Value<{backingType}>({index});";
             }
 
             switch (Type) {
@@ -257,7 +259,7 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return $"{Name} == {otherVariableName}";
             }
 
@@ -325,7 +327,7 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
             }
 
@@ -364,7 +366,7 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
             }
 
@@ -404,7 +406,7 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
                 return true;
             }
 

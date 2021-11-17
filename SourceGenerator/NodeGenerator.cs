@@ -13,7 +13,7 @@ namespace SourceGenerator {
     public class NodeGenerator : ISourceGenerator {
         public void Initialize(GeneratorInitializationContext context) {
             GeneratorContext.NodeTypes = new ConcurrentBag<GeneratedClass>();
-            GeneratorContext.EnumTypes = new ConcurrentBag<EnumDeclarationSyntax>();
+            GeneratorContext.EnumTypes = new ConcurrentDictionary<string, string>();
             GeneratorContext.GeneratedFiles = new ConcurrentBag<GeneratedFile>();
             GeneratorContext.GeneratedFilesByName = new ConcurrentDictionary<string, GeneratedFile>();
 
@@ -87,7 +87,11 @@ namespace SourceGenerator {
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode) {
             switch (syntaxNode) {
                 case EnumDeclarationSyntax eds: {
-                    GeneratorContext.EnumTypes.Add(eds);
+                    string baseType = "int";
+                    if (eds.BaseList is { Types: { Count: > 0 } }) {
+                        baseType = eds.BaseList.Types[0].Type.ToString();
+                    }
+                    GeneratorContext.EnumTypes.TryAdd(eds.Identifier.Text, baseType);
                     break;
                 }
                 case ClassDeclarationSyntax cd: {
