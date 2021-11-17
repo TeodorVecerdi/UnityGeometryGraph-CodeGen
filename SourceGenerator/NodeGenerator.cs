@@ -25,10 +25,9 @@ namespace SourceGenerator {
             CleanupOldFiles();
         }
 
-        private void Generate(GeneratorExecutionContext context) {
+        private static void Generate(GeneratorExecutionContext context) {
             foreach (GeneratedClass generatedClass in GeneratorContext.NodeTypes) {
                 generatedClass.AssemblyName = context.Compilation.AssemblyName;
-                string sourceCode = generatedClass.GetCode();
 
                 // Output path
                 string filePath = generatedClass.FilePath;
@@ -41,48 +40,46 @@ namespace SourceGenerator {
                 }
 
                 string qualifiedName = GeneratorUtils.GetQualifiedClassName(generatedClass);
+                CleanupOldFile(qualifiedName, destinationPath);
 
-                if (GeneratorContext.GeneratedFilesByName.ContainsKey(qualifiedName)) {
-                    var existingFile = GeneratorContext.GeneratedFilesByName[qualifiedName];
-                    if (existingFile.GeneratedFilePath != destinationPath) {
-                        File.Delete(existingFile.GeneratedFilePath);
-                        if (File.Exists($"{existingFile.GeneratedFilePath}.meta")) {
-                            File.Delete($"{existingFile.GeneratedFilePath}.meta");
-                        }
-                        
-                        string removedDirectory = existingFile.GeneratedFilePath.Substring(0, existingFile.GeneratedFilePath.LastIndexOf('\\'));
-                        if (!Directory.EnumerateFileSystemEntries(removedDirectory).Any()) {
-                            Directory.Delete(removedDirectory);
-                        }
-                    }
-                }
-
+                string sourceCode = generatedClass.GetCode();
                 sourceCode = sourceCode.Replace("[SourceClass(\"{SOURCE_NAME}\")]", $"[SourceClass(\"{qualifiedName}\")]");
                 sourceCode = sourceCode.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
                 File.WriteAllText(destinationPath, sourceCode);
-                // context.AddSource($"{generatedClass.ClassName}.gen.cs", SourceText.From(sourceCode, Encoding.UTF8));
             }
         }
 
-        private void CleanupOldFiles() {
+        private static void CleanupOldFile(string classQualifiedName, string generatedFilePath) {
+            if (!GeneratorContext.GeneratedFilesByName.ContainsKey(classQualifiedName)) return;
+            
+            GeneratedFile generatedFile = GeneratorContext.GeneratedFilesByName[classQualifiedName];
+            if (generatedFile.GeneratedFilePath == generatedFilePath) return;
+            
+            DeleteSourceAndDirectory(generatedFile);
+        }
+
+        private static void CleanupOldFiles() {
             var generatedFiles = new HashSet<string>();
             foreach (GeneratedClass generatedClass in GeneratorContext.NodeTypes) {
                 generatedFiles.Add(GeneratorUtils.GetQualifiedClassName(generatedClass));
             }
             
             foreach (GeneratedFile generatedFile in GeneratorContext.GeneratedFiles) {
-                if (!generatedFiles.Contains(generatedFile.SourceClassName)) {
-                    File.Delete(generatedFile.GeneratedFilePath);
-                    if (File.Exists($"{generatedFile.GeneratedFilePath}.meta")) {
-                        File.Delete($"{generatedFile.GeneratedFilePath}.meta");
-                    }
-                    
-                    string removedDirectory = generatedFile.GeneratedFilePath.Substring(0, generatedFile.GeneratedFilePath.LastIndexOf('\\'));
-                    if (!Directory.EnumerateFileSystemEntries(removedDirectory).Any()) {
-                        Directory.Delete(removedDirectory);
-                    }
-                }
+                if (generatedFiles.Contains(generatedFile.SourceClassName)) continue;
+
+                DeleteSourceAndDirectory(generatedFile);
             }
+        }
+
+        private static void DeleteSourceAndDirectory(GeneratedFile generatedFile) {
+            File.Delete(generatedFile.GeneratedFilePath);
+            if (File.Exists($"{generatedFile.GeneratedFilePath}.meta")) File.Delete($"{generatedFile.GeneratedFilePath}.meta");
+
+            string removedDirectory = generatedFile.GeneratedFilePath.Substring(0, generatedFile.GeneratedFilePath.LastIndexOf('\\'));
+            if (Directory.EnumerateFileSystemEntries(removedDirectory).Any()) return;
+
+            Directory.Delete(removedDirectory);
+            if (File.Exists($"{removedDirectory}.meta")) File.Delete($"{removedDirectory}.meta");
         }
     }
 
