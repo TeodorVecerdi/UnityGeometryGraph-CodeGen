@@ -30,10 +30,9 @@ namespace SourceGenerator {
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
             Usings = new HashSet<string>();
 
+            NamespaceName = null;
             if (classDeclarationSyntax.Parent is NamespaceDeclarationSyntax) {
                 NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
-            } else {
-                NamespaceName = "GeometryGraph.Generated";
             }
             
             Properties = new List<GeneratedProperty>();
@@ -77,11 +76,14 @@ namespace SourceGenerator {
             string postDeserialization = GetPostDeserializationCode().TrimEnd();
             string getValueForPort = GetGetValueForPortCode().TrimEnd();
             string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
-            // string debugInfo = $"\n\n/*\n{GetDebugInfoCode()}*/";
-            string debugInfo = "";
-
+            
+            // if (NamespaceName is null or "") {
+            if (string.IsNullOrEmpty(NamespaceName)) {
+                return string.Format(Templates.ClassTemplateNoNamespace, usingStatements, ClassName, portDeclarations, portInitializers, serialization, deserialization,
+                                     postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
+            }
             return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, deserialization,
-                                 postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged, debugInfo);
+                                 postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
         }
 
         #region Code Generation
