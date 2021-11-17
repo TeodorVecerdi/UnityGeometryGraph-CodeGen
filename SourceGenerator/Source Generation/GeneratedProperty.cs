@@ -171,37 +171,37 @@ namespace SourceGenerator {
         
         #region Code Generation API
 
-        public string GetSerializationCode() {
-            return $"{GeneratorUtils.Indent(4)}{GetSerializationCodeImpl()}";
+        public string GetSerializationCode(int indentation) {
+            return $"{GeneratorUtils.Indent(indentation + 2)}{GetSerializationCodeImpl()}";
         }
 
-        public string GetDeserializationCode(int index) {
-            return $"{GeneratorUtils.Indent(3)}{GetDeserializationCodeImpl(index)}";
+        public string GetDeserializationCode(int indentation, int index) {
+            return $"{GeneratorUtils.Indent(indentation + 1)}{GetDeserializationCodeImpl(index)}";
         }
 
-        public string GetPortPropertyDeclaration() {
-            return $"{GeneratorUtils.Indent(2)}{string.Format(Templates.PortPropertyTemplate, PortName)}";
+        public string GetPortPropertyDeclaration(int indentation) {
+            return $"{GeneratorUtils.Indent(indentation)}{string.Format(Templates.PortPropertyTemplate, PortName)}";
         }
 
-        public string GetPortCtorDeclaration() {
+        public string GetPortCtorDeclaration(int indentation) {
             return
-                $"{GeneratorUtils.Indent(3)}{string.Format(Templates.PortCtorTemplate, PortName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
+                $"{GeneratorUtils.Indent(indentation + 1)}{string.Format(Templates.PortCtorTemplate, PortName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
         }
 
         public string GetEqualityComparison(string otherVariableName) {
             return GetEqualityComparisonImpl(otherVariableName);
         }
 
-        public string GetUpdateFromEditorNodeMethod(string calculate, string notify) {
-            return GetUpdateFromEditorNodeMethodImpl(calculate, notify);
+        public string GetUpdateFromEditorNodeMethod(int indentation, string calculate, string notify) {
+            return GetUpdateFromEditorNodeMethodImpl(indentation, calculate, notify);
         }
 
-        public string GetGetValueForPortCode() {
-            return GetGetValueForPortCodeImpl();
+        public string GetGetValueForPortCode(int indentation) {
+            return GetGetValueForPortCodeImpl(indentation);
         }
 
-        public string GetOnPortValueChangedCode(string calculate, string notify) {
-            return GetOnPortValueChangedCodeImpl(calculate, notify);
+        public string GetOnPortValueChangedCode(int indentation, string calculate, string notify) {
+            return GetOnPortValueChangedCodeImpl(indentation, calculate, notify);
         }
 
         public string GetDebugCode() {
@@ -279,26 +279,26 @@ namespace SourceGenerator {
             }
         }
 
-        private string GetUpdateFromEditorNodeMethodImpl(string calculate, string notify) {
+        private string GetUpdateFromEditorNodeMethodImpl(int indentation, string calculate, string notify) {
             string equality = "";
             if (GenerateEquality) {
-                equality = $"\n{GeneratorUtils.Indent(3)}if({GetEqualityComparisonImpl("newValue")}) return;";
+                equality = $"\n{GeneratorUtils.Indent(indentation + 1)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(2), PortName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
+            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(indentation), PortName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
         }
 
-        private string GetGetValueForPortCodeImpl() {
-            return $"{GeneratorUtils.Indent(3)}if (port == {PortName}) return {Name};";
+        private string GetGetValueForPortCodeImpl(int indentation) {
+            return $"{GeneratorUtils.Indent(indentation + 1)}if (port == {PortName}) return {Name};";
         }
 
-        private string GetOnPortValueChangedCodeImpl(string calculate, string notify) {
+        private string GetOnPortValueChangedCodeImpl(int indentation, string calculate, string notify) {
             string equality = "";
             if (GenerateEquality) {
-                equality = $"\n{GeneratorUtils.Indent(4)}if({GetEqualityComparisonImpl("newValue")}) return;";
+                equality = $"\n{GeneratorUtils.Indent(indentation + 2)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(3), PortName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
+            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(indentation + 1), PortName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
         }
         
         #endregion

@@ -23,6 +23,8 @@ namespace SourceGenerator {
         public HashSet<string> UpdateAllMethods { get; }
         public Dictionary<string, GetterMethod> GetterMethods { get; }
 
+        private int indentation = 1;
+
         public GeneratedClass(ClassDeclarationSyntax classDeclarationSyntax) {
             ClassDeclarationSyntax = classDeclarationSyntax;
 
@@ -30,9 +32,9 @@ namespace SourceGenerator {
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
             Usings = new HashSet<string>();
 
-            NamespaceName = null;
             if (classDeclarationSyntax.Parent is NamespaceDeclarationSyntax) {
                 NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
+                indentation = 2;
             }
             
             Properties = new List<GeneratedProperty>();
@@ -95,7 +97,7 @@ namespace SourceGenerator {
         private string GetPortDeclarationsCode() {
             var stringBuilder = new StringBuilder();
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind != GeneratedPropertyKind.Setting)) {
-                stringBuilder.AppendLine(property.GetPortPropertyDeclaration());
+                stringBuilder.AppendLine(property.GetPortPropertyDeclaration(indentation));
             }
 
             return stringBuilder.ToString();
@@ -104,7 +106,7 @@ namespace SourceGenerator {
         private string GetPortInitializersCode() {
             var stringBuilder = new StringBuilder();
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind != GeneratedPropertyKind.Setting)) {
-                stringBuilder.AppendLine(property.GetPortCtorDeclaration());
+                stringBuilder.AppendLine(property.GetPortCtorDeclaration(indentation));
             }
 
             return stringBuilder.ToString();
@@ -114,9 +116,9 @@ namespace SourceGenerator {
             var stringBuilder = new StringBuilder();
 
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateUpdateFromEditorMethod)) {
-                var propertyCalculateMethods = GetCalculateMethodsFor(property, 3);
-                var propertyNotifyMethods = GetNotifyMethodsFor(property, 3);
-                stringBuilder.AppendLine($"{property.GetUpdateFromEditorNodeMethod(propertyCalculateMethods, propertyNotifyMethods)}\n");
+                var propertyCalculateMethods = GetCalculateMethodsFor(property, indentation + 1);
+                var propertyNotifyMethods = GetNotifyMethodsFor(property, indentation + 1);
+                stringBuilder.AppendLine($"{property.GetUpdateFromEditorNodeMethod(indentation, propertyCalculateMethods, propertyNotifyMethods)}\n");
             }
 
             return stringBuilder.ToString();
@@ -125,7 +127,7 @@ namespace SourceGenerator {
         private string GetSerializationCode() {
             var stringBuilder = new StringBuilder();
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
-                stringBuilder.AppendLine(property.GetSerializationCode());
+                stringBuilder.AppendLine(property.GetSerializationCode(indentation));
             }
 
             return stringBuilder.ToString();
@@ -135,7 +137,7 @@ namespace SourceGenerator {
             var stringBuilder = new StringBuilder();
             int serializationIndex = 0;
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
-                stringBuilder.AppendLine(property.GetDeserializationCode(serializationIndex));
+                stringBuilder.AppendLine(property.GetDeserializationCode(indentation, serializationIndex));
                 serializationIndex++;
             }
 
@@ -150,7 +152,7 @@ namespace SourceGenerator {
             foreach (string method in UpdateMethods.Where(pair => pair.Key != "").SelectMany(pair => pair.Value)) {
                 if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}{method}();");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{method}();");
                 addedMethods.Add(method);
             }
 
@@ -158,13 +160,13 @@ namespace SourceGenerator {
             foreach (string method in UpdateAllMethods) {
                 if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}{method}();");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{method}();");
                 addedMethods.Add(method);
             }
 
             // Notify port value changed
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.PortName});");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}NotifyPortValueChanged({property.PortName});");
             }
 
             return stringBuilder.ToString();
@@ -175,12 +177,12 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(property.Name)) {
                     var getterMethod = GetterMethods[property.Name];
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
+                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
                 } else if (property.CustomGetter) {
                     stringBuilder.AppendLine(
-                        $"{GeneratorUtils.Indent(3)}if (port == {property.PortName}) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
+                        $"{GeneratorUtils.Indent(indentation + 1)}if (port == {property.PortName}) {{\n{GeneratorUtils.Indent(indentation + 2)}{property.GetterCode}\n{GeneratorUtils.Indent(indentation + 1)}}}");
                 } else {
-                    stringBuilder.AppendLine(property.GetGetValueForPortCode());
+                    stringBuilder.AppendLine(property.GetGetValueForPortCode(indentation));
                 }
             }
 
@@ -193,17 +195,17 @@ namespace SourceGenerator {
             // Add if (port == outputPortA || ...) return;
             if (Properties.Any(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 stringBuilder.AppendLine(
-                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PortName}"))}) return;");
+                    $"{GeneratorUtils.Indent(indentation + 1)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PortName}"))}) return;");
             }
 
             // Add individual ifs joined by ` else `
             if (Properties.Any(property => property.Kind == GeneratedPropertyKind.InputPort)) {
                 string notify = string.Join(" else ", Properties.Where(property => property.Kind == GeneratedPropertyKind.InputPort).Select(property => {
-                    string propertyCalculateMethods = GetCalculateMethodsFor(property, 4);
-                    string propertyNotifyMethods = GetNotifyMethodsFor(property, 4);
-                    return property.GetOnPortValueChangedCode(propertyCalculateMethods, propertyNotifyMethods);
+                    string propertyCalculateMethods = GetCalculateMethodsFor(property, indentation + 2);
+                    string propertyNotifyMethods = GetNotifyMethodsFor(property, indentation + 2);
+                    return property.GetOnPortValueChangedCode(indentation, propertyCalculateMethods, propertyNotifyMethods);
                 }));
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}{notify}");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{notify}");
             }
 
             return stringBuilder.ToString();
