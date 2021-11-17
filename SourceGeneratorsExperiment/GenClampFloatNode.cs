@@ -1,5 +1,5 @@
 ﻿namespace SourceGeneratorsExperiment {
-    [GenerateRuntimeNode]
+    [GenerateRuntimeNode(OutputPath = "")]
     public partial class GenClampFloatNode : RuntimeNode {
         [In] private float value;
         [In] private float min;

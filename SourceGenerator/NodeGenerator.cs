@@ -21,12 +21,13 @@ namespace SourceGenerator {
         }
 
         public void Execute(GeneratorExecutionContext context) {
-            Generate();
+            Generate(context);
             CleanupOldFiles();
         }
 
-        private void Generate() {
+        private void Generate(GeneratorExecutionContext context) {
             foreach (GeneratedClass generatedClass in GeneratorContext.NodeTypes) {
+                generatedClass.AssemblyName = context.Compilation.AssemblyName;
                 string sourceCode = generatedClass.GetCode();
 
                 // Output path
@@ -45,6 +46,10 @@ namespace SourceGenerator {
                     var existingFile = GeneratorContext.GeneratedFilesByName[qualifiedName];
                     if (existingFile.GeneratedFilePath != destinationPath) {
                         File.Delete(existingFile.GeneratedFilePath);
+                        if (File.Exists($"{existingFile.GeneratedFilePath}.meta")) {
+                            File.Delete($"{existingFile.GeneratedFilePath}.meta");
+                        }
+                        
                         string removedDirectory = existingFile.GeneratedFilePath.Substring(0, existingFile.GeneratedFilePath.LastIndexOf('\\'));
                         if (!Directory.EnumerateFileSystemEntries(removedDirectory).Any()) {
                             Directory.Delete(removedDirectory);
@@ -68,6 +73,10 @@ namespace SourceGenerator {
             foreach (GeneratedFile generatedFile in GeneratorContext.GeneratedFiles) {
                 if (!generatedFiles.Contains(generatedFile.SourceClassName)) {
                     File.Delete(generatedFile.GeneratedFilePath);
+                    if (File.Exists($"{generatedFile.GeneratedFilePath}.meta")) {
+                        File.Delete($"{generatedFile.GeneratedFilePath}.meta");
+                    }
+                    
                     string removedDirectory = generatedFile.GeneratedFilePath.Substring(0, generatedFile.GeneratedFilePath.LastIndexOf('\\'));
                     if (!Directory.EnumerateFileSystemEntries(removedDirectory).Any()) {
                         Directory.Delete(removedDirectory);

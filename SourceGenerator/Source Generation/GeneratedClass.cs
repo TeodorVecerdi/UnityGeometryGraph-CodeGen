@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
@@ -11,6 +12,8 @@ namespace SourceGenerator {
         public string ClassName { get; }
         public string NamespaceName { get; }
         public string FilePath { get; }
+        public string AssemblyName { get; set; }
+        
         public string OutputRelativePath { get; }
 
         public List<GeneratedProperty> Properties { get; }

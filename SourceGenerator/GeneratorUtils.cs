@@ -124,7 +124,7 @@ namespace SourceGenerator {
         }
 
         public static string GetQualifiedClassName(GeneratedClass generatedClass) {
-            return $"{generatedClass.NamespaceName}::{generatedClass.ClassName}";
+            return $"{generatedClass.AssemblyName}::{generatedClass.NamespaceName}::{generatedClass.ClassName}";
         }
     }
 }
