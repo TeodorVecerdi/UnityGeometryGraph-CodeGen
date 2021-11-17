@@ -37,14 +37,13 @@ namespace SourceGenerator {
             GetterMethods = new Dictionary<string, GetterMethod>();
             
             // Get relative path from [GenerateRuntimeNode] attribute
-            OutputRelativePath = "";
+            OutputRelativePath = "Generated";
             foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.Name.ToString() != "GenerateRuntimeNode" || attribute.ArgumentList == null) continue;
                 
                 string argName = attribute.ArgumentList.Arguments[0].NameEquals.Name.Identifier.Text;
-                string argValue = GeneratorUtils.ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
                 if (argName == "OutputPath") {
-                    OutputRelativePath = argValue;
+                    OutputRelativePath = GeneratorUtils.ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
                 }
             }
 
@@ -158,7 +157,7 @@ namespace SourceGenerator {
 
             // Notify port value changed
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.CapitalizedName}Port);");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.PortName});");
             }
 
             return stringBuilder.ToString();
@@ -169,10 +168,10 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(property.Name)) {
                     var getterMethod = GetterMethods[property.Name];
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.CapitalizedName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
+                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
                 } else if (property.CustomGetter) {
                     stringBuilder.AppendLine(
-                        $"{GeneratorUtils.Indent(3)}if (port == {property.CapitalizedName}Port) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
+                        $"{GeneratorUtils.Indent(3)}if (port == {property.PortName}) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
                 } else {
                     stringBuilder.AppendLine(property.GetGetValueForPortCode());
                 }
@@ -187,7 +186,7 @@ namespace SourceGenerator {
             // Add if (port == outputPortA || ...) return;
             if (Properties.Any(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 stringBuilder.AppendLine(
-                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.CapitalizedName}Port"))}) return;");
+                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PortName}"))}) return;");
             }
 
             // Add individual ifs joined by ` else `
@@ -379,7 +378,7 @@ namespace SourceGenerator {
 
             foreach (GeneratedProperty notifiedProperty in Properties.Where(otherProperty => otherProperty.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (property.UpdatesAllProperties || property.UpdatesProperties.Contains(notifiedProperty.Name)) {
-                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedProperty.CapitalizedName}Port);");
+                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedProperty.PortName});");
                 }
             }
 

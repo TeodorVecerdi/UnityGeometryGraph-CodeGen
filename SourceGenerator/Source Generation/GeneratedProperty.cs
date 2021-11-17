@@ -11,42 +11,42 @@ namespace SourceGenerator {
         // General info about the property that gets parsed from the property declaration
         public string Type { get; }
         public string Name { get; }
-        public string CapitalizedName { get; }
         public GeneratedPropertyKind Kind { get; }
 
         // PortType if the property is an In or Out property
         public PortPropertyType PortType { get; }
+        public string PortName { get; }
+        public string OverridePortName { get; private set; }
 
         // Optionally, the property can update other properties when it changes its value
-        public bool UpdatesAllProperties { get; set; }
+        public bool UpdatesAllProperties { get; private set; }
         public List<string> UpdatesProperties { get; }
 
         // Generating a method for updating the property from an editor node can be disabled
-        public bool GenerateUpdateFromEditorMethod { get; set; }
+        public bool GenerateUpdateFromEditorMethod { get; private set; }
         
         // These indicate whether serialization and equality checks are supported for the property type
-        public bool GenerateSerialization { get; set; }
+        public bool GenerateSerialization { get; private set; }
         public bool GenerateEquality { get; }
 
         // You can specify custom serialization code for the property
-        public bool CustomSerialization { get; set; }
-        public string SerializationCode { get; set; }
-        public string DeserializationCode { get; set; }
+        public bool CustomSerialization { get; private set; }
+        public string SerializationCode { get; private set; }
+        public string DeserializationCode { get; private set; }
 
         // You can specify custom equality code for the property
-        public bool CustomEquality { get; set; }
-        public string EqualityCode { get; set; }
+        public bool CustomEquality { get; private set; }
+        public string EqualityCode { get; private set; }
 
         // You can specify a custom getter for the property. It's used in the `GetValueForPort` method
-        public bool CustomGetter { get; set; }
-        public string GetterCode { get; set; }
+        public bool CustomGetter { get; private set; }
+        public string GetterCode { get; private set; }
 
         public GeneratedProperty(PropertyDeclarationSyntax property, GeneratedPropertyKind kind) {
             Property = property;
             Kind = kind;
             Type = property.Type.ToString();
             Name = property.Identifier.Text;
-            CapitalizedName = GeneratorUtils.CapitalizeName(Name);
 
             GenerateSerialization = true;
             GenerateUpdateFromEditorMethod = true;
@@ -72,6 +72,8 @@ namespace SourceGenerator {
             GenerateSerialization = CustomSerialization || GenerateSerialization && CanGenerateSerialization();
             GenerateEquality = CustomEquality || CanGenerateEquality();
             GenerateUpdateFromEditorMethod = GenerateUpdateFromEditorMethod && CanGenerateUpdateFromEditorMethod();
+
+            PortName = string.IsNullOrEmpty(OverridePortName) ? GeneratorUtils.CapitalizeName(Name) + "Port" : OverridePortName;
         }
 
         #region Property Parsing
@@ -100,16 +102,22 @@ namespace SourceGenerator {
                     }
                     case "In":
                     case "Setting": {
-                        foreach (AttributeArgumentSyntax argument in arguments.Where(argument => argument.NameEquals != null)) {
-                            string argName = argument.NameEquals.Name.Identifier.Text;
-                            string argValue = argument.Expression.ToString();
-
-                            if (argValue != "false") continue;
+                        foreach (AttributeArgumentSyntax argument in arguments) {
+                            if (argument.NameEquals == null) continue;
                             
+                            string argName = argument.NameEquals.Name.Identifier.Text;
+
                             if (argName == "IsSerialized") {
+                                string argValue = argument.Expression.ToString();
+                                if (argValue != "false") continue;
                                 GenerateSerialization = false;
                             } else if (argName == "UpdatedFromEditorNode") {
+                                string argValue = argument.Expression.ToString();
+                                if (argValue != "false") continue;
                                 GenerateUpdateFromEditorMethod = false;
+                            } else if (argName == "PortName") {
+                                string portName = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                OverridePortName = portName;
                             }
                         }
 
@@ -142,6 +150,18 @@ namespace SourceGenerator {
                         GetterCode = getterString.Replace("{self}", Name);
                         break;
                     }
+                    case "Out": {
+                        foreach (AttributeArgumentSyntax argument in arguments) {
+                            if (argument.NameEquals == null) continue;
+                            
+                            string argName = argument.NameEquals.Name.Identifier.Text;
+                            if (argName == "PortName") {
+                                string portName = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                OverridePortName = portName;
+                            }
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -160,12 +180,12 @@ namespace SourceGenerator {
         }
 
         public string GetPortPropertyDeclaration() {
-            return $"{GeneratorUtils.Indent(2)}{string.Format(Templates.PortPropertyTemplate, CapitalizedName)}";
+            return $"{GeneratorUtils.Indent(2)}{string.Format(Templates.PortPropertyTemplate, PortName)}";
         }
 
         public string GetPortCtorDeclaration() {
             return
-                $"{GeneratorUtils.Indent(3)}{string.Format(Templates.PortCtorTemplate, CapitalizedName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
+                $"{GeneratorUtils.Indent(3)}{string.Format(Templates.PortCtorTemplate, PortName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
         }
 
         public string GetEqualityComparison(string otherVariableName) {
@@ -263,22 +283,22 @@ namespace SourceGenerator {
                 equality = $"\n{GeneratorUtils.Indent(3)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(2), CapitalizedName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
+            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(2), PortName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
         }
 
         private string GetGetValueForPortCodeImpl() {
-            return $"{GeneratorUtils.Indent(3)}if (port == {CapitalizedName}Port) return {Name};";
+            return $"{GeneratorUtils.Indent(3)}if (port == {PortName}) return {Name};";
         }
 
-        public string GetOnPortValueChangedCodeImpl(string calculate, string notify) {
+        private string GetOnPortValueChangedCodeImpl(string calculate, string notify) {
             string equality = "";
             if (GenerateEquality) {
                 equality = $"\n{GeneratorUtils.Indent(4)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(3), CapitalizedName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
+            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(3), PortName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
         }
-
+        
         #endregion
 
         #region Checks

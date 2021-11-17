@@ -52,13 +52,10 @@ namespace {1} {{
 }}";
 
         // 0: port name
-        public static string PortPropertyTemplate = @"public RuntimePort {0}Port {{ get; }}";
+        public static string PortPropertyTemplate = @"public RuntimePort {0} {{ get; }}";
         
         // 0: port name, 1: port type, 2: port direction
-        public static string PortCtorTemplate =     @"{0}Port = RuntimePort.Create(PortType.{1}, PortDirection.{2}, this);"; 
-        
-        // 0: port name
-        public static string NotifyResultTemplate = @"NotifyPortValueChanged({0}Port);";
+        public static string PortCtorTemplate =     @"{0} = RuntimePort.Create(PortType.{1}, PortDirection.{2}, this);"; 
         
         // 0: indent, 1: pascal case name, 2: type, 3: equality if, 4: field name, 5: calculate methods, 6: notify methods
         public static string UpdateFromEditorNodeTemplate = @"{0}public void Update{1}({2} newValue) {{{3}
@@ -66,8 +63,8 @@ namespace {1} {{
 {0}}}";
 
         // 0: indent, 1: pascal case name, 2: field name, 3: equality, 4: calculate methods, 5: notify methods
-        public static string OnPortValueChangedIfTemplate = @"if (port == {1}Port) {{
-{0}    var newValue = GetValue({1}Port, {2});{3}
+        public static string OnPortValueChangedIfTemplate = @"if (port == {1}) {{
+{0}    var newValue = GetValue({1}, {2});{3}
 
 {0}    {2} = newValue;{4}{5}
 {0}}}";

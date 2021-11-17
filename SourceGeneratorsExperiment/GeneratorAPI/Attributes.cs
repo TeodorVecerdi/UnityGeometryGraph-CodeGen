@@ -49,10 +49,21 @@ namespace SourceGeneratorsExperiment {
         /// Whether the property should be serialized.<br/>Default: <c>true</c>
         /// </summary>
         public bool IsSerialized { get; set;  } = true;
+        
+        /// <summary>
+        /// Overrides the default port name for the property.<br/>
+        /// By default, the port name is the name of the property + "Port"
+        /// </summary>
+        public string PortName { get; set; }
     }
-    
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class OutAttribute : Attribute {
+        /// <summary>
+        /// Overrides the default port name for the property.<br/>
+        /// By default, the port name is the name of the property + "Port"
+        /// </summary>
+        public string PortName { get; set; }
     }
     
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
@@ -65,28 +76,23 @@ namespace SourceGeneratorsExperiment {
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class CustomSerializationAttribute : Attribute {
-        public CustomSerializationAttribute(string serializationCode, string deserializationCode) {
-        }
+        public CustomSerializationAttribute(string serializationCode, string deserializationCode) { }
     }
     
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class CustomEqualityAttribute : Attribute {
-        public CustomEqualityAttribute(string equalityCode) {
-        }
+        public CustomEqualityAttribute(string equalityCode) { }
     }
     
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class GetterAttribute : Attribute {
-        public GetterAttribute(string getterCode) {
-        }
+        public GetterAttribute(string getterCode) { }
     }
     
     [AttributeUsage(AttributeTargets.Method)]
     public class GetterMethodAttribute : Attribute {
         public bool Inline { get; set; }
-        
-        public GetterMethodAttribute(string property) {
-        }
+        public GetterMethodAttribute(string property) { }
     }
     
 }
