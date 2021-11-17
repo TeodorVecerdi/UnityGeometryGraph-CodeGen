@@ -97,6 +97,7 @@ namespace SourceGenerator {
             }
 
             if (Properties.Any(property => property.Type is "float2" or "float3")) {
+                stringBuilder.AppendLine("using Unity.Mathematics;");
                 stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");
             }
 
