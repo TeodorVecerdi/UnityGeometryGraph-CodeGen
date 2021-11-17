@@ -27,9 +27,14 @@ namespace SourceGenerator {
             ClassDeclarationSyntax = classDeclarationSyntax;
 
             ClassName = classDeclarationSyntax.Identifier.Text;
-            NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
             Usings = new HashSet<string>();
+
+            if (classDeclarationSyntax.Parent is NamespaceDeclarationSyntax) {
+                NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
+            } else {
+                NamespaceName = "GeometryGraph.Generated";
+            }
             
             Properties = new List<GeneratedProperty>();
             UpdateMethods = new Dictionary<string, HashSet<string>>();
