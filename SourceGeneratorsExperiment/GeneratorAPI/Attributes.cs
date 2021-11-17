@@ -1,8 +1,16 @@
 ﻿using System;
 
-namespace SourceGeneratorsExperiment.GeneratorAPI {
+namespace SourceGeneratorsExperiment {
     [AttributeUsage(AttributeTargets.Class)]
     public class GenerateRuntimeNodeAttribute : Attribute {
+        /// <summary>
+        /// Specifies where the generated file should be placed relative to the original file.
+        /// </summary>
+        public string OutputPath { get; set; }
+    }
+
+    public class SourceClassAttribute : Attribute {
+        public SourceClassAttribute(string name, string path) { }
     }
     
     [AttributeUsage(AttributeTargets.Class)]

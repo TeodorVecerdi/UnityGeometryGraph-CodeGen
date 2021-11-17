@@ -17,6 +17,7 @@
 {0}{11}
 
 namespace {1} {{
+    [SourceClass(""{{SOURCE_NAME}}"", ""{{SOURCE_PATH}}"")]
     public partial class {2} : RuntimeNode {{
 {3}
 

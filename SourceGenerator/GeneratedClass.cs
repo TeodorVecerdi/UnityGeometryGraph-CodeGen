@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
@@ -11,8 +12,10 @@ namespace SourceGenerator {
 
         public string ClassName { get; }
         public string NamespaceName { get; }
+        public string RelativePath { get; }
 
         public List<GeneratedProperty> Properties { get; }
+        
         public Dictionary<string, HashSet<string>> UpdateMethods { get; }
         public HashSet<string> UpdateAllMethods { get; }
         public Dictionary<string, GetterMethod> GetterMethods { get; }
@@ -27,8 +30,28 @@ namespace SourceGenerator {
             UpdateMethods = new Dictionary<string, HashSet<string>>();
             UpdateAllMethods = new HashSet<string>();
             GetterMethods = new Dictionary<string, GetterMethod>();
+            
+            // Get relative path from [GenerateRuntimeNode] attribute
+            RelativePath = "";
+            foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
+                if (attribute.Name.ToString() != "GenerateRuntimeNode" || attribute.ArgumentList == null) continue;
+                
+                string argName = attribute.ArgumentList.Arguments[0].NameEquals.Name.Identifier.Text;
+                string argValue = GeneratorUtils.ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
+                if (argName == "OutputPath") {
+                    RelativePath = argValue;
+                }
+            }
 
+            // Loops through all the properties in the class, looking for
+            // attributes that indicate that they should be generated. ([In], [Out], [Setting])
+            // It creates a GeneratedProperty object for each property, which then parses more
+            // information about the property and alters the generated code.
             CollectProperties();
+            
+            // Loops through all the methods in the class, looking for
+            // attributes that alter how the method-relevant code is generated.
+            // The attributes it currently looks for are: CalculatesAllProperties, CalculatesProperty, and, GetterMethod.
             CollectMethods();
         }
 
@@ -42,8 +65,8 @@ namespace SourceGenerator {
             string postDeserialization = GetPostDeserializationCode().TrimEnd();
             string getValueForPort = GetGetValueForPortCode().TrimEnd();
             string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
-            string debugInfo = $"\n\n/*\n{GetDebugInfoCode()}*/";
-            // string debugInfo = "";
+            // string debugInfo = $"\n\n/*\n{GetDebugInfoCode()}*/";
+            string debugInfo = "";
 
             return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, deserialization,
                                  postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged, debugInfo);
@@ -70,7 +93,7 @@ namespace SourceGenerator {
                 }
             }
 
-            if (Properties.Any(property => property.TypeString is "float2" or "float3")) {
+            if (Properties.Any(property => property.Type is "float2" or "float3")) {
                 stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");
             }
 
@@ -149,7 +172,7 @@ namespace SourceGenerator {
 
             // Notify port value changed
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.PascalCaseName}Port);");
+                stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}NotifyPortValueChanged({property.CapitalizedName}Port);");
             }
 
             return stringBuilder.ToString();
@@ -160,10 +183,10 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(property.Name)) {
                     var getterMethod = GetterMethods[property.Name];
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.PascalCaseName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
+                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(3)}if (port == {property.CapitalizedName}Port) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
                 } else if (property.CustomGetter) {
                     stringBuilder.AppendLine(
-                        $"{GeneratorUtils.Indent(3)}if (port == {property.PascalCaseName}Port) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
+                        $"{GeneratorUtils.Indent(3)}if (port == {property.CapitalizedName}Port) {{\n{GeneratorUtils.Indent(4)}{property.GetterCode}\n{GeneratorUtils.Indent(3)}}}");
                 } else {
                     stringBuilder.AppendLine(property.GetGetValueForPortCode());
                 }
@@ -178,7 +201,7 @@ namespace SourceGenerator {
             // Add if (port == outputPortA || ...) return;
             if (Properties.Any(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 stringBuilder.AppendLine(
-                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PascalCaseName}Port"))}) return;");
+                    $"{GeneratorUtils.Indent(3)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.CapitalizedName}Port"))}) return;");
             }
 
             // Add individual ifs joined by ` else `
@@ -266,9 +289,8 @@ namespace SourceGenerator {
                         continue;
                     }
 
-                    if (attribute.ArgumentList == null) continue;
-                    List<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments.ToList();
-                    if (arguments.Count == 0) continue;
+                    if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) continue;
+                    SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
 
                     switch (attributeName) {
                         case "CalculatesProperty": {
@@ -346,7 +368,7 @@ namespace SourceGenerator {
 
             foreach (GeneratedProperty notifiedProperty in Properties.Where(otherProperty => otherProperty.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (property.UpdatesAllProperties || property.UpdatesProperties.Contains(notifiedProperty.Name)) {
-                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedProperty.PascalCaseName}Port);");
+                    stringBuilder.AppendLine($"{indentString}NotifyPortValueChanged({notifiedProperty.CapitalizedName}Port);");
                 }
             }
 

@@ -1,7 +1,7 @@
-﻿using SourceGeneratorsExperiment.GeneratorAPI;
+﻿using SourceGeneratorsExperiment;
 
 namespace GeometryGraph.Runtime.Graph {
-    [GenerateRuntimeNode]
+    [GenerateRuntimeNode(OutputPath = "Generated")]
     [AdditionalUsingStatements("SourceGeneratorsExperiment", "GeometryGraph.Runtime.Serialization")]
     public partial class FloatBranchNode {
         [In] public bool Condition { get; private set; }

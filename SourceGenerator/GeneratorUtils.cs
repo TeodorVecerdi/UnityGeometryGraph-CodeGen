@@ -42,7 +42,7 @@ namespace SourceGenerator {
         /// ToPascalCase("_012_hello") == "Hello"
         /// </code>
         /// </example>
-        public static string ToPascalCase(string name) {
+        public static string CapitalizeName(string name) {
             // remove any leading characters that are not letters
             name = Regex.Replace(name, @"^([^a-zA-Z]*)(.*)", "$2");
             

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -18,8 +19,22 @@ namespace SourceGenerator {
         public void Execute(GeneratorExecutionContext context) {
             foreach (ClassDeclarationSyntax nodeClass in GeneratorContext.NodeTypes) {
                 var generatedClass = new GeneratedClass(nodeClass);
-                var sourceCode = generatedClass.GetCode();
-                context.AddSource($"{generatedClass.ClassName}.gen.cs", SourceText.From(sourceCode, Encoding.UTF8));
+                string sourceCode = generatedClass.GetCode();
+                
+                // Output path
+                string filePath = nodeClass.SyntaxTree.FilePath;
+                string directory = filePath.Substring(0, filePath.LastIndexOf('\\') + 1);
+                string destinationDirectory = Path.Combine(directory, generatedClass.RelativePath);
+                string destinationPath = Path.Combine(destinationDirectory, $"{generatedClass.ClassName}.gen.cs");
+                
+                if (!Directory.Exists(destinationDirectory)) {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
+
+                sourceCode = sourceCode.Replace("[SourceClass(\"{SOURCE_NAME}\", \"{SOURCE_PATH}\")]", $"[SourceClass(\"{generatedClass.ClassName}\", \"{filePath.Replace("\\", "\\\\")}\")]");
+                
+                File.WriteAllText(destinationPath, sourceCode);
+                // context.AddSource($"{generatedClass.ClassName}.gen.cs", SourceText.From(sourceCode, Encoding.UTF8));
             }
         }
     }

@@ -1,60 +1,72 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
     public class GeneratedProperty {
         public PropertyDeclarationSyntax Property { get; }
-        public TypeSyntax Type { get; }
-        public string TypeString { get; }
+        
+        // General info about the property that gets parsed from the property declaration
+        public string Type { get; }
         public string Name { get; }
+        public string CapitalizedName { get; }
         public GeneratedPropertyKind Kind { get; }
-        public string PascalCaseName { get; }
 
+        // PortType if the property is an In or Out property
         public PortPropertyType PortType { get; }
 
+        // Optionally, the property can update other properties when it changes its value
         public bool UpdatesAllProperties { get; set; }
         public List<string> UpdatesProperties { get; }
 
+        // Generating a method for updating the property from an editor node can be disabled
         public bool GenerateUpdateFromEditorMethod { get; set; }
+        
+        // These indicate whether serialization and equality checks are supported for the property type
         public bool GenerateSerialization { get; set; }
         public bool GenerateEquality { get; }
 
+        // You can specify custom serialization code for the property
         public bool CustomSerialization { get; set; }
         public string SerializationCode { get; set; }
         public string DeserializationCode { get; set; }
 
+        // You can specify custom equality code for the property
         public bool CustomEquality { get; set; }
         public string EqualityCode { get; set; }
 
+        // You can specify a custom getter for the property. It's used in the `GetValueForPort` method
         public bool CustomGetter { get; set; }
         public string GetterCode { get; set; }
 
         public GeneratedProperty(PropertyDeclarationSyntax property, GeneratedPropertyKind kind) {
             Property = property;
             Kind = kind;
-            Type = property.Type;
-            TypeString = Type.ToString();
+            Type = property.Type.ToString();
             Name = property.Identifier.Text;
-            PascalCaseName = GeneratorUtils.ToPascalCase(Name);
+            CapitalizedName = GeneratorUtils.CapitalizeName(Name);
 
             GenerateSerialization = true;
             GenerateUpdateFromEditorMethod = true;
 
-            UpdatesAllProperties = kind != GeneratedPropertyKind.OutputPort;
+            UpdatesAllProperties = kind is not GeneratedPropertyKind.OutputPort;
             UpdatesProperties = new List<string>();
 
-            if (Kind != GeneratedPropertyKind.OutputPort) {
+            // Collect specific attributes if the property is an InputPort or Setting
+            if (Kind is GeneratedPropertyKind.InputPort or GeneratedPropertyKind.Setting) {
                 CollectInputAndSettingAttributes();
             }
 
-            if (Kind == GeneratedPropertyKind.OutputPort) {
+            // Collect specific attributes if the property is an OutputPort
+            if (Kind is GeneratedPropertyKind.OutputPort) {
                 CollectOutputAttributes();
             }
 
-            if (Kind != GeneratedPropertyKind.Setting) {
-                PortType = GeneratorUtils.GetPortType(TypeString);
+            // Calculate port type if the property is an In or Out property
+            if (Kind is not GeneratedPropertyKind.Setting) {
+                PortType = GeneratorUtils.GetPortType(Type);
             }
 
             GenerateSerialization = CustomSerialization || GenerateSerialization && CanGenerateSerialization();
@@ -62,11 +74,12 @@ namespace SourceGenerator {
             GenerateUpdateFromEditorMethod = GenerateUpdateFromEditorMethod && CanGenerateUpdateFromEditorMethod();
         }
 
+        #region Property Parsing
+
         private void CollectInputAndSettingAttributes() {
             foreach (AttributeSyntax attribute in Property.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
-                if (attribute.ArgumentList == null) continue;
-                List<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments.ToList();
-                if (arguments.Count == 0) continue;
+                if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) continue;
+                SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
 
                 switch (attribute.Name.ToString()) {
                     case "CustomSerialization": {
@@ -119,9 +132,8 @@ namespace SourceGenerator {
 
         private void CollectOutputAttributes() {
             foreach (AttributeSyntax attribute in Property.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
-                if (attribute.ArgumentList == null) continue;
-                List<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments.ToList();
-                if (arguments.Count == 0) continue;
+                if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) continue;
+                SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
                 
                 switch (attribute.Name.ToString()) {
                     case "Getter": {
@@ -133,7 +145,10 @@ namespace SourceGenerator {
                 }
             }
         }
+        
 
+        #endregion
+        
         #region Code Generation API
 
         public string GetSerializationCode() {
@@ -145,12 +160,12 @@ namespace SourceGenerator {
         }
 
         public string GetPortPropertyDeclaration() {
-            return $"{GeneratorUtils.Indent(2)}{string.Format(Templates.PortPropertyTemplate, PascalCaseName)}";
+            return $"{GeneratorUtils.Indent(2)}{string.Format(Templates.PortPropertyTemplate, CapitalizedName)}";
         }
 
         public string GetPortCtorDeclaration() {
             return
-                $"{GeneratorUtils.Indent(3)}{string.Format(Templates.PortCtorTemplate, PascalCaseName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
+                $"{GeneratorUtils.Indent(3)}{string.Format(Templates.PortCtorTemplate, CapitalizedName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
         }
 
         public string GetEqualityComparison(string otherVariableName) {
@@ -184,11 +199,11 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
                 return $"(int){Name},";
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "bool": return $"{Name} ? 1 : 0,";
                 case "float2": return $"JsonConvert.SerializeObject({Name}, float2Converter.Converter),";
                 case "float3": return $"JsonConvert.SerializeObject({Name}, float3Converter.Converter),";
@@ -203,16 +218,16 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
-                return $"{Name} = ({TypeString}) array.Value<int>({index});";
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
+                return $"{Name} = ({Type}) array.Value<int>({index});";
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "bool": return $"{Name} = array.Value<int>({index}) == 1;";
                 case "float2": return $"{Name} = JsonConvert.DeserializeObject<float2>(array.Value<string>({index}), float2Converter.Converter);";
                 case "float3": return $"{Name} = JsonConvert.DeserializeObject<float3>(array.Value<string>({index}), float3Converter.Converter);";
 
-                default: return $"{Name} = array.Value<{TypeString}>({index});";
+                default: return $"{Name} = array.Value<{Type}>({index});";
             }
         }
 
@@ -222,11 +237,11 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
                 return $"{Name} == {otherVariableName}";
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "int":
                 case "bool":
                     return $"{Name} == {otherVariableName}";
@@ -248,11 +263,11 @@ namespace SourceGenerator {
                 equality = $"\n{GeneratorUtils.Indent(3)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(2), PascalCaseName, TypeString, equality, Name, $"\n{calculate}", notify.TrimEnd());
+            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(2), CapitalizedName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
         }
 
         private string GetGetValueForPortCodeImpl() {
-            return $"{GeneratorUtils.Indent(3)}if (port == {PascalCaseName}Port) return {Name};";
+            return $"{GeneratorUtils.Indent(3)}if (port == {CapitalizedName}Port) return {Name};";
         }
 
         public string GetOnPortValueChangedCodeImpl(string calculate, string notify) {
@@ -261,7 +276,7 @@ namespace SourceGenerator {
                 equality = $"\n{GeneratorUtils.Indent(4)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(3), PascalCaseName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
+            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(3), CapitalizedName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
         }
 
         #endregion
@@ -290,11 +305,11 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
                 return true;
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "int":
                 case "bool":
                 case "string":
@@ -329,11 +344,11 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
                 return true;
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "int":
                 case "bool":
                 case "string":
@@ -369,11 +384,11 @@ namespace SourceGenerator {
                 }
             }
 
-            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), TypeString, StringComparison.InvariantCulture))) {
+            if (GeneratorContext.EnumTypes.Any(enumDecl => string.Equals(enumDecl.Identifier.ToString(), Type, StringComparison.InvariantCulture))) {
                 return true;
             }
 
-            switch (TypeString) {
+            switch (Type) {
                 case "int":
                 case "bool":
                 case "string":

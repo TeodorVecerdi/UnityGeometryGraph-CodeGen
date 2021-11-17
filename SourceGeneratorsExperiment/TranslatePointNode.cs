@@ -1,4 +1,4 @@
-﻿using SourceGeneratorsExperiment.GeneratorAPI;
+﻿using SourceGeneratorsExperiment;
 
 namespace SourceGeneratorsExperiment {
     public class GeometryData {}

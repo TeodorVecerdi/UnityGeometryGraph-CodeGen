@@ -2,6 +2,8 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
         <LangVersion>9</LangVersion>
+        <AssemblyName>GeometryGraphSourceGenerator</AssemblyName>
+        <IsRoslynComponent>true</IsRoslynComponent>
     </PropertyGroup>
 
     <ItemGroup>
