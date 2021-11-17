@@ -1,19 +1,20 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
     public class GeneratedClass {
-        private ClassDeclarationSyntax classDeclarationSyntax;
+        public ClassDeclarationSyntax ClassDeclarationSyntax { get; }
 
         public string ClassName { get; }
         public string NamespaceName { get; }
         public string FilePath { get; }
         public string AssemblyName { get; set; }
-        
+        public HashSet<string> Usings { get; set; }
+
         public string OutputRelativePath { get; }
 
         public List<GeneratedProperty> Properties { get; }
@@ -23,12 +24,13 @@ namespace SourceGenerator {
         public Dictionary<string, GetterMethod> GetterMethods { get; }
 
         public GeneratedClass(ClassDeclarationSyntax classDeclarationSyntax) {
-            this.classDeclarationSyntax = classDeclarationSyntax;
+            ClassDeclarationSyntax = classDeclarationSyntax;
 
             ClassName = classDeclarationSyntax.Identifier.Text;
             NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
-
+            Usings = new HashSet<string>();
+            
             Properties = new List<GeneratedProperty>();
             UpdateMethods = new Dictionary<string, HashSet<string>>();
             UpdateAllMethods = new HashSet<string>();
@@ -56,6 +58,9 @@ namespace SourceGenerator {
             // attributes that alter how the method-relevant code is generated.
             // The attributes it currently looks for are: CalculatesAllProperties, CalculatesProperty, and, GetterMethod.
             CollectMethods();
+            
+            // Gather information about the class, such as using statements
+            CollectUsings();
         }
 
         public string GetCode() {
@@ -78,30 +83,7 @@ namespace SourceGenerator {
         #region Code Generation
 
         private string GetUsingStatements() {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("using System;");
-            stringBuilder.AppendLine("using Newtonsoft.Json;");
-            stringBuilder.AppendLine("using Newtonsoft.Json.Linq;");
-            
-            foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
-                if (attribute.Name.ToString() == "AdditionalUsingStatements") {
-                    if (attribute.ArgumentList == null) {
-                        continue;
-                    }
-
-                    foreach (var arg in attribute.ArgumentList.Arguments) {
-                        var @namespace = GeneratorUtils.ExtractStringFromExpression(arg.Expression);
-                        stringBuilder.AppendLine($"using {@namespace};");
-                    }
-                }
-            }
-
-            if (Properties.Any(property => property.Type is "float2" or "float3")) {
-                stringBuilder.AppendLine("using Unity.Mathematics;");
-                stringBuilder.AppendLine("using GeometryGraph.Runtime.Serialization;");
-            }
-
-            return stringBuilder.ToString();
+            return string.Join("\n", Usings);
         }
 
         private string GetPortDeclarationsCode() {
@@ -252,7 +234,7 @@ namespace SourceGenerator {
         #region Information Collection
 
         private void CollectProperties() {
-            List<PropertyDeclarationSyntax> propertyDeclarations = classDeclarationSyntax.Members.OfType<PropertyDeclarationSyntax>().ToList();
+            List<PropertyDeclarationSyntax> propertyDeclarations = ClassDeclarationSyntax.Members.OfType<PropertyDeclarationSyntax>().ToList();
 
             // [In] properties
             Properties.AddRange(
@@ -283,7 +265,7 @@ namespace SourceGenerator {
         }
 
         private void CollectMethods() {
-            List<MethodDeclarationSyntax> methods = classDeclarationSyntax.Members.OfType<MethodDeclarationSyntax>().ToList();
+            List<MethodDeclarationSyntax> methods = ClassDeclarationSyntax.Members.OfType<MethodDeclarationSyntax>().ToList();
             foreach (MethodDeclarationSyntax method in methods) {
                 foreach (AttributeSyntax attribute in method.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                     string attributeName = attribute.Name.ToString();
@@ -328,6 +310,31 @@ namespace SourceGenerator {
                             break;
                         }
                     }
+                }
+            }
+        }
+
+        private void CollectUsings() {
+            Usings.Add("using System;");
+            Usings.Add("using Newtonsoft.Json;");
+            Usings.Add("using Newtonsoft.Json.Linq;");
+            
+            var compilationUnit = ClassDeclarationSyntax.FirstAncestorOrSelf<SyntaxNode>(node => node is CompilationUnitSyntax);
+            if (compilationUnit is CompilationUnitSyntax compilation) {
+                foreach (string usingStatement in compilation.Usings.Select(syntax => syntax.ToString())) {
+                    Usings.Add(usingStatement);
+                }
+            }
+
+            if (Properties.Any(property => property.Type is "float2" or "float3")) {
+                Usings.Add("using GeometryGraph.Runtime.Serialization;");
+            }
+
+            foreach (AttributeSyntax attribute in ClassDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
+                if (attribute.Name.ToString() != "AdditionalUsingStatements" || attribute.ArgumentList == null) continue;
+
+                foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => GeneratorUtils.ExtractStringFromExpression(arg.Expression))) {
+                    Usings.Add($"using {@namespace};");
                 }
             }
         }
