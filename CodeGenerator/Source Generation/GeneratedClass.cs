@@ -17,6 +17,7 @@ namespace SourceGenerator {
         public HashSet<string> Usings { get; set; }
 
         public string OutputRelativePath { get; }
+        public bool GenerateSerialization { get; private set; }
 
         public List<GeneratedProperty> Properties { get; }
         
@@ -67,6 +68,9 @@ namespace SourceGenerator {
             
             // Gather information about the class, such as using statements
             CollectUsings();
+            
+            GenerateSerialization = true;
+            CollectGeneratorSettings();
         }
 
         public string GetCode() {
@@ -80,13 +84,12 @@ namespace SourceGenerator {
             string getValueForPort = GetGetValueForPortCode().TrimEnd();
             string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
             
-            // if (NamespaceName is null or "") {
             if (string.IsNullOrEmpty(NamespaceName)) {
-                return string.Format(Templates.ClassTemplateNoNamespace, usingStatements, ClassName, portDeclarations, portInitializers, serialization, deserialization,
-                                     postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
+                return string.Format(Templates.ClassTemplateNoNamespace, usingStatements, ClassName, portDeclarations, portInitializers, serialization, 
+                                     deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
             }
-            return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, deserialization,
-                                 postDeserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
+            return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, 
+                                 deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
         }
 
         #region Code Generation
@@ -126,15 +129,19 @@ namespace SourceGenerator {
         }
 
         private string GetSerializationCode() {
+            if (!GenerateSerialization) return "";
+            
             var stringBuilder = new StringBuilder();
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
                 stringBuilder.AppendLine(property.GetSerializationCode(indentation));
             }
 
-            return stringBuilder.ToString();
+            return $"\n\n{string.Format(Templates.SerializationTemplate, Indent(indentation), stringBuilder.ToString().TrimEnd())}";
         }
 
         private string GetDeserializationCode() {
+            if (!GenerateSerialization) return "";
+
             var stringBuilder = new StringBuilder();
             int serializationIndex = 0;
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
@@ -142,7 +149,7 @@ namespace SourceGenerator {
                 serializationIndex++;
             }
 
-            return stringBuilder.ToString();
+            return $"\n\n{string.Format(Templates.DeserializationTemplate, Indent(indentation), stringBuilder.ToString().TrimEnd(), GetPostDeserializationCode().TrimEnd())}";
         }
 
         private string GetPostDeserializationCode() {
@@ -342,6 +349,25 @@ namespace SourceGenerator {
 
                 foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => ExtractStringFromExpression(arg.Expression))) {
                     Usings.Add($"using {@namespace};");
+                }
+            }
+        }
+
+        private void CollectGeneratorSettings() {
+            foreach (AttributeSyntax attribute in ClassDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
+                if (attribute.Name.ToString() != "GeneratorSettings" || attribute.ArgumentList == null) continue;
+
+                foreach (AttributeArgumentSyntax argument in attribute.ArgumentList.Arguments) {
+                    if (argument.NameEquals == null) continue;
+                    string argName = argument.NameEquals.Name.Identifier.Text;
+                    switch (argName) {
+                        case "GenerateSerialization": {
+                            string argValue = argument.Expression.ToString();
+                            if (argValue == "true") continue;
+                            GenerateSerialization = false;
+                            break;
+                        }
+                    }
                 }
             }
         }

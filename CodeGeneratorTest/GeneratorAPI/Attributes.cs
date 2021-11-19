@@ -8,17 +8,21 @@ namespace SourceGeneratorsExperiment {
         /// </summary>
         public string OutputPath { get; set; }
     }
-
-    public class SourceClassAttribute: Attribute {
-        public SourceClassAttribute(string name) { }
-    }
     
+    [AttributeUsage(AttributeTargets.Class)]
+    public class GeneratorSettingsAttribute: Attribute {
+        /// <summary>
+        /// Whether to generate serialization and deserialization methods.<br/>Default: <c>true</c>
+        /// </summary>
+        public bool GenerateSerialization { get; set; } = true;
+    }
+
     [AttributeUsage(AttributeTargets.Class)]
     public class AdditionalUsingStatementsAttribute: Attribute {
         public AdditionalUsingStatementsAttribute(params string[] namespaces) {
         }
     }
-    
+
     [AttributeUsage(AttributeTargets.Method)]
     public class CalculatesPropertyAttribute: Attribute {
         public CalculatesPropertyAttribute() {
@@ -30,7 +34,6 @@ namespace SourceGeneratorsExperiment {
     [AttributeUsage(AttributeTargets.Method)]
     public class CalculatesAllPropertiesAttribute: Attribute {
     }
-
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class UpdatesPropertiesAttribute: Attribute {
@@ -93,12 +96,12 @@ namespace SourceGeneratorsExperiment {
     public class CustomSerializationAttribute: Attribute {
         public CustomSerializationAttribute(string serializationCode, string deserializationCode) { }
     }
-    
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class CustomEqualityAttribute: Attribute {
         public CustomEqualityAttribute(string equalityCode) { }
     }
-    
+
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class GetterAttribute: Attribute {
         public GetterAttribute(string getterCode) { }
@@ -122,7 +125,7 @@ namespace SourceGeneratorsExperiment {
             AfterNotify,
         } 
     }
-    
+
     [AttributeUsage(AttributeTargets.Method)]
     public class GetterMethodAttribute: Attribute {
         /// <summary>
@@ -132,5 +135,8 @@ namespace SourceGeneratorsExperiment {
         
         public GetterMethodAttribute(string property) { }
     }
-    
+
+    public class SourceClassAttribute: Attribute {
+        public SourceClassAttribute(string name) { }
+    }
 }
