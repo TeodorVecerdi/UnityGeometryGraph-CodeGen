@@ -11,6 +11,7 @@ namespace SourceGenerator {
         // General info about the property that gets parsed from the property declaration
         public string Type { get; }
         public string Name { get; }
+        public string UppercaseName { get; }
         public GeneratedPropertyKind Kind { get; }
 
         // PortType if the property is an In or Out property
@@ -73,7 +74,8 @@ namespace SourceGenerator {
             GenerateEquality = CustomEquality || CanGenerateEquality();
             GenerateUpdateFromEditorMethod = GenerateUpdateFromEditorMethod && CanGenerateUpdateFromEditorMethod();
 
-            PortName = string.IsNullOrEmpty(OverridePortName) ? GeneratorUtils.CapitalizeName(Name) + "Port" : OverridePortName;
+            UppercaseName = GeneratorUtils.CapitalizeName(Name);
+            PortName = string.IsNullOrEmpty(OverridePortName) ? UppercaseName + "Port" : OverridePortName;
         }
 
         #region Property Parsing
@@ -285,7 +287,7 @@ namespace SourceGenerator {
                 equality = $"\n{GeneratorUtils.Indent(indentation + 1)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(indentation), PortName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
+            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(indentation), UppercaseName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
         }
 
         private string GetGetValueForPortCodeImpl(int indentation) {
