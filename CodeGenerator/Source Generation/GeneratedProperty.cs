@@ -485,13 +485,10 @@ namespace SourceGenerator {
             }
 
             switch (Type) {
-                case "int":
-                case "bool":
-                case "string":
-                case "float":
-                case "float2":
-                case "float3":
-                    return true;
+                case "GeometryData":
+                case "List<GeometryData>":
+                case "CurveData":
+                    return false;
 
                 default: return true;
             }

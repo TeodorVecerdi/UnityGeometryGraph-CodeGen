@@ -13,10 +13,8 @@
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
     </ItemGroup>
     
-<!--
     <Target Name="Deploy Assembly" AfterTargets="AfterBuild">
-        <Message Text="-&#45;&#45;&#45;&#45;&#45;&#45; Copying .dll and .pdb to `$(ProjectDir)$(GeometryGraphPluginPath)`" Importance="high"/>
+        <Message Text="------- Copying .dll and .pdb to `$(ProjectDir)$(GeometryGraphPluginPath)`" Importance="high"/>
         <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll;$(TargetDir)$(AssemblyName).pdb" DestinationFolder="$(ProjectDir)$(GeometryGraphPluginPath)" ContinueOnError="true"/>
     </Target>
--->
 </Project>
