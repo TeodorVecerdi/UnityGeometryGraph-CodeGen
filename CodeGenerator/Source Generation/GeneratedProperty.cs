@@ -22,6 +22,8 @@ namespace SourceGenerator {
         public string DefaultValue { get; private set; }
         public string UpdateValueCode { get; private set; }
         public string GetValueCode { get; private set; }
+        public bool CallNotifyMethodsIfChanged { get; private set; }
+        public bool CallUpdateMethodsIfChanged { get; private set; }
 
         // Optionally, the property can update other properties when it changes its value
         public bool UpdatesAllProperties { get; private set; }
@@ -81,6 +83,8 @@ namespace SourceGenerator {
             DefaultValue = Name;
             UpdateValueCode = $"{Name} = {{other}};";
             GetValueCode = "var {other} = GetValue(connection, {default});";
+            CallNotifyMethodsIfChanged = true;
+            CallUpdateMethodsIfChanged = true;
 
             // Collect specific attributes if the property is an InputPort or Setting
             if (Kind is GeneratedPropertyKind.InputPort or GeneratedPropertyKind.Setting) {
@@ -169,6 +173,14 @@ namespace SourceGenerator {
                             } else if (argName == "GetValueCode") {
                                 string argValue = ExtractStringFromExpression(argument.Expression);
                                 GetValueCode = argValue.Replace("{self}", Name);
+                            } else if (argName == "CallNotifyMethodsIfChanged") {
+                                string argValue = argument.Expression.ToString();
+                                if (argValue != "false") continue;
+                                CallNotifyMethodsIfChanged = false;
+                            } else if (argName == "CallUpdateMethodsIfChanged") {
+                                string argValue = argument.Expression.ToString();
+                                if (argValue != "false") continue;
+                                CallUpdateMethodsIfChanged = false;
                             }
                         }
 
@@ -441,8 +453,11 @@ namespace SourceGenerator {
 
             calculate = calculate.TrimEnd();
             if (!string.IsNullOrEmpty(calculate)) calculate = $"\n{calculate}";
+            if (!CallUpdateMethodsIfChanged) calculate = ""; 
+            
             notify = notify.TrimEnd();
             if (!string.IsNullOrEmpty(notify)) notify = $"\n{notify}";
+            if (!CallNotifyMethodsIfChanged) notify = ""; 
 
             string updateValueCode = UpdateValueCode.Trim();
             if (!string.IsNullOrEmpty(updateValueCode)) {
