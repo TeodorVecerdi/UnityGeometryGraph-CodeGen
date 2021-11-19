@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static SourceGenerator.GeneratorUtils;
 
 namespace SourceGenerator {
     public class GeneratedProperty {
         public PropertyDeclarationSyntax Property { get; }
-        
+
         // General info about the property that gets parsed from the property declaration
         public string Type { get; }
         public string Name { get; }
@@ -25,7 +26,7 @@ namespace SourceGenerator {
 
         // Generating a method for updating the property from an editor node can be disabled
         public bool GenerateUpdateFromEditorMethod { get; private set; }
-        
+
         // These indicate whether serialization and equality checks are supported for the property type
         public bool GenerateSerialization { get; private set; }
         public bool GenerateEquality { get; private set; }
@@ -43,6 +44,14 @@ namespace SourceGenerator {
         public bool CustomGetter { get; private set; }
         public string GetterCode { get; private set; }
 
+        // You can add custom code to the OnPortValueChanged method
+        public List<string> AdditionalValueChangedCode_BeforeGetValue { get; }
+        public List<string> AdditionalValueChangedCode_AfterGetValue { get; }
+        public List<string> AdditionalValueChangedCode_AfterEqualityCheck { get; }
+        public List<string> AdditionalValueChangedCode_AfterUpdate { get; }
+        public List<string> AdditionalValueChangedCode_AfterCalculate { get; }
+        public List<string> AdditionalValueChangedCode_AfterNotify { get; }
+
         public GeneratedProperty(PropertyDeclarationSyntax property, GeneratedPropertyKind kind) {
             Property = property;
             Kind = kind;
@@ -56,6 +65,13 @@ namespace SourceGenerator {
             UpdatesAllProperties = kind is not GeneratedPropertyKind.OutputPort;
             UpdatesProperties = new List<string>();
 
+            AdditionalValueChangedCode_BeforeGetValue = new List<string>();
+            AdditionalValueChangedCode_AfterGetValue = new List<string>();
+            AdditionalValueChangedCode_AfterEqualityCheck = new List<string>();
+            AdditionalValueChangedCode_AfterUpdate = new List<string>();
+            AdditionalValueChangedCode_AfterCalculate = new List<string>();
+            AdditionalValueChangedCode_AfterNotify = new List<string>();
+
             // Collect specific attributes if the property is an InputPort or Setting
             if (Kind is GeneratedPropertyKind.InputPort or GeneratedPropertyKind.Setting) {
                 CollectInputAndSettingAttributes();
@@ -68,14 +84,14 @@ namespace SourceGenerator {
 
             // Calculate port type if the property is an In or Out property
             if (Kind is not GeneratedPropertyKind.Setting) {
-                PortType = GeneratorUtils.GetPortType(Type);
+                PortType = GetPortType(Type);
             }
 
             GenerateSerialization = CustomSerialization || GenerateSerialization && CanGenerateSerialization();
             GenerateEquality = CustomEquality || GenerateEquality && CanGenerateEquality();
             GenerateUpdateFromEditorMethod = GenerateUpdateFromEditorMethod && CanGenerateUpdateFromEditorMethod();
 
-            UppercaseName = GeneratorUtils.CapitalizeName(Name);
+            UppercaseName = CapitalizeName(Name);
             PortName = string.IsNullOrEmpty(OverridePortName) ? UppercaseName + "Port" : OverridePortName;
         }
 
@@ -90,16 +106,16 @@ namespace SourceGenerator {
                     case "CustomSerialization": {
                         CustomSerialization = true;
 
-                        string serializationCodeString = GeneratorUtils.ExtractStringFromExpression(arguments[0].Expression);
+                        string serializationCodeString = ExtractStringFromExpression(arguments[0].Expression);
                         SerializationCode = serializationCodeString.Replace("{self}", Name);
 
-                        string deserializationCodeString = GeneratorUtils.ExtractStringFromExpression(arguments[1].Expression);
+                        string deserializationCodeString = ExtractStringFromExpression(arguments[1].Expression);
                         DeserializationCode = deserializationCodeString.Replace("{self}", Name).Replace("{storage}", "array");
                         break;
                     }
                     case "CustomEquality": {
                         CustomEquality = true;
-                        string equalityCodeString = GeneratorUtils.ExtractStringFromExpression(arguments[0].Expression);
+                        string equalityCodeString = ExtractStringFromExpression(arguments[0].Expression);
                         EqualityCode = equalityCodeString.Replace("{self}", Name);
                         break;
                     }
@@ -107,7 +123,7 @@ namespace SourceGenerator {
                     case "Setting": {
                         foreach (AttributeArgumentSyntax argument in arguments) {
                             if (argument.NameEquals == null) continue;
-                            
+
                             string argName = argument.NameEquals.Name.Identifier.Text;
 
                             if (argName == "IsSerialized") {
@@ -119,7 +135,7 @@ namespace SourceGenerator {
                                 if (argValue != "false") continue;
                                 GenerateUpdateFromEditorMethod = false;
                             } else if (argName == "PortName") {
-                                string portName = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                string portName = ExtractStringFromExpression(argument.Expression);
                                 OverridePortName = portName;
                             } else if (argName == "GenerateEquality") {
                                 string argValue = argument.Expression.ToString();
@@ -133,9 +149,48 @@ namespace SourceGenerator {
                     case "UpdatesProperties": {
                         UpdatesAllProperties = false;
                         foreach (AttributeArgumentSyntax argument in arguments) {
-                            string variableName = GeneratorUtils.ExtractNameFromExpression(argument.Expression);
+                            string variableName = ExtractNameFromExpression(argument.Expression);
                             if (!string.IsNullOrEmpty(variableName)) {
                                 UpdatesProperties.Add(variableName);
+                            }
+                        }
+
+                        break;
+                    }
+                    case "AdditionalValueChangedCode": {
+                        string argValue = ExtractStringFromExpression(arguments[0].Expression);
+                        if (string.IsNullOrEmpty(argValue)) continue;
+                        string code = argValue.Replace("{self}", Name);
+
+                        if (arguments.Count == 1) {
+                            AdditionalValueChangedCode_AfterUpdate.Add(code);
+                        } else {
+                            string location = arguments[1].Expression.ToString().Replace("AdditionalValueChangedCodeAttribute.Location.", "");
+                            switch (location) {
+                                case "BeforeGetValue": {
+                                    AdditionalValueChangedCode_BeforeGetValue.Add(code);
+                                    break;
+                                }
+                                case "AfterGetValue": {
+                                    AdditionalValueChangedCode_AfterGetValue.Add(code);
+                                    break;
+                                }
+                                case "AfterEqualityCheck": {
+                                    AdditionalValueChangedCode_AfterEqualityCheck.Add(code);
+                                    break;
+                                }
+                                case "AfterUpdate": {
+                                    AdditionalValueChangedCode_AfterUpdate.Add(code);
+                                    break;
+                                }
+                                case "AfterCalculate": {
+                                    AdditionalValueChangedCode_AfterCalculate.Add(code);
+                                    break;
+                                }
+                                case "AfterNotify": {
+                                    AdditionalValueChangedCode_AfterNotify.Add(code);
+                                    break;
+                                }
                             }
                         }
 
@@ -149,50 +204,50 @@ namespace SourceGenerator {
             foreach (AttributeSyntax attribute in Property.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) continue;
                 SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
-                
+
                 switch (attribute.Name.ToString()) {
                     case "Getter": {
                         CustomGetter = true;
-                        string getterString = GeneratorUtils.ExtractStringFromExpression(arguments[0].Expression);
+                        string getterString = ExtractStringFromExpression(arguments[0].Expression);
                         GetterCode = getterString.Replace("{self}", Name);
                         break;
                     }
                     case "Out": {
                         foreach (AttributeArgumentSyntax argument in arguments) {
                             if (argument.NameEquals == null) continue;
-                            
+
                             string argName = argument.NameEquals.Name.Identifier.Text;
                             if (argName == "PortName") {
-                                string portName = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                string portName = ExtractStringFromExpression(argument.Expression);
                                 OverridePortName = portName;
                             }
                         }
+
                         break;
                     }
                 }
             }
         }
-        
 
         #endregion
-        
+
         #region Code Generation API
 
         public string GetSerializationCode(int indentation) {
-            return $"{GeneratorUtils.Indent(indentation + 2)}{GetSerializationCodeImpl()}";
+            return $"{Indent(indentation + 2)}{GetSerializationCodeImpl()}";
         }
 
         public string GetDeserializationCode(int indentation, int index) {
-            return $"{GeneratorUtils.Indent(indentation + 1)}{GetDeserializationCodeImpl(index)}";
+            return $"{Indent(indentation + 1)}{GetDeserializationCodeImpl(index)}";
         }
 
         public string GetPortPropertyDeclaration(int indentation) {
-            return $"{GeneratorUtils.Indent(indentation)}{string.Format(Templates.PortPropertyTemplate, PortName)}";
+            return $"{Indent(indentation)}{string.Format(Templates.PortPropertyTemplate, PortName)}";
         }
 
         public string GetPortCtorDeclaration(int indentation) {
             return
-                $"{GeneratorUtils.Indent(indentation + 1)}{string.Format(Templates.PortCtorTemplate, PortName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
+                $"{Indent(indentation + 1)}{string.Format(Templates.PortCtorTemplate, PortName, PortType.ToString(), Kind == GeneratedPropertyKind.InputPort ? "Input" : "Output")}";
         }
 
         public string GetEqualityComparison(string otherVariableName) {
@@ -289,23 +344,74 @@ namespace SourceGenerator {
         private string GetUpdateFromEditorNodeMethodImpl(int indentation, string calculate, string notify) {
             string equality = "";
             if (GenerateEquality) {
-                equality = $"\n{GeneratorUtils.Indent(indentation + 1)}if({GetEqualityComparisonImpl("newValue")}) return;";
+                equality = $"\n{Indent(indentation + 1)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.UpdateFromEditorNodeTemplate, GeneratorUtils.Indent(indentation), UppercaseName, Type, equality, Name, $"\n{calculate}", notify.TrimEnd());
+            return string.Format(Templates.UpdateFromEditorNodeTemplate, Indent(indentation), UppercaseName, Type, equality, Name, $"\n{calculate}",
+                                 notify.TrimEnd());
         }
 
         private string GetGetValueForPortCodeImpl(int indentation) {
-            return $"{GeneratorUtils.Indent(indentation + 1)}if (port == {PortName}) return {Name};";
+            return $"{Indent(indentation + 1)}if (port == {PortName}) return {Name};";
         }
 
         private string GetOnPortValueChangedCodeImpl(int indentation, string calculate, string notify) {
             string equality = "";
             if (GenerateEquality) {
-                equality = $"\n{GeneratorUtils.Indent(indentation + 2)}if({GetEqualityComparisonImpl("newValue")}) return;";
+                equality = $"\n{Indent(indentation + 2)}if({GetEqualityComparisonImpl("newValue")}) return;";
             }
 
-            return string.Format(Templates.OnPortValueChangedIfTemplate, GeneratorUtils.Indent(indentation + 1), PortName, Name, equality, $"\n{calculate}", $"{notify.TrimEnd()}");
+            string extraCodeBeforeGetValue = string.Join("\n", AdditionalValueChangedCode_BeforeGetValue.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeBeforeGetValue)) extraCodeBeforeGetValue = $"\n{extraCodeBeforeGetValue}";
+            string extraCodeAfterGetValue = string.Join("\n", AdditionalValueChangedCode_AfterGetValue.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeAfterGetValue)) extraCodeAfterGetValue = $"\n{extraCodeAfterGetValue}";
+            string extraCodeAfterEqualityCheck = string.Join("\n", AdditionalValueChangedCode_AfterEqualityCheck.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeAfterEqualityCheck)) extraCodeAfterEqualityCheck = $"\n{extraCodeAfterEqualityCheck}";
+            string extraCodeAfterUpdate = string.Join("\n", AdditionalValueChangedCode_AfterUpdate.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeAfterUpdate)) extraCodeAfterUpdate = $"\n{extraCodeAfterUpdate}";
+            string extraCodeAfterCalculate = string.Join("\n", AdditionalValueChangedCode_AfterCalculate.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeAfterCalculate)) extraCodeAfterCalculate = $"\n{extraCodeAfterCalculate}";
+            string extraCodeAfterNotify = string.Join("\n", AdditionalValueChangedCode_AfterNotify.Select(code => {
+                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = UnescapeString(code);
+                code = code.Replace("{indent}", Indent(indentation + 2));
+                return $"{Indent(indentation + 2)}{code}";
+            }));
+            if (!string.IsNullOrEmpty(extraCodeAfterNotify)) extraCodeAfterNotify = $"\n{extraCodeAfterNotify}";
+
+            calculate = calculate.TrimEnd();
+            if (!string.IsNullOrEmpty(calculate)) calculate = $"\n{calculate}";
+            notify = notify.TrimEnd();
+            if (!string.IsNullOrEmpty(notify)) notify = $"\n{notify}";
+
+            return string.Format(Templates.OnPortValueChangedIfTemplate, Indent(indentation + 1), PortName, Name, equality, calculate,
+                                 notify, extraCodeBeforeGetValue, extraCodeAfterGetValue, extraCodeAfterEqualityCheck, extraCodeAfterUpdate, 
+                                 extraCodeAfterCalculate, extraCodeAfterNotify);
         }
         
         #endregion

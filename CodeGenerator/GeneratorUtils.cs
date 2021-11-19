@@ -126,5 +126,16 @@ namespace SourceGenerator {
         public static string GetQualifiedClassName(GeneratedClass generatedClass) {
             return $"{generatedClass.AssemblyName}::{generatedClass.NamespaceName}::{generatedClass.ClassName}";
         }
+        
+        public static string UnescapeString(string str) {
+            str = str
+                  .Replace("\\r\\n", "\n")
+                  .Replace("\\n", "\n")
+                  .Replace("\\t", "\t")
+                  .Replace("\\\"", "\"")
+                  .Replace("\\'", "'")
+                  .Replace("\\\\", "\\");
+            return str;
+        }
     }
 }

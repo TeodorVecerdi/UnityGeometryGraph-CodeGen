@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static SourceGenerator.GeneratorUtils;
 
 namespace SourceGenerator {
     public class GeneratedClass {
@@ -49,7 +50,7 @@ namespace SourceGenerator {
                 
                 string argName = attribute.ArgumentList.Arguments[0].NameEquals.Name.Identifier.Text;
                 if (argName == "OutputPath") {
-                    OutputRelativePath = GeneratorUtils.ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
+                    OutputRelativePath = ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
                 }
             }
 
@@ -152,7 +153,7 @@ namespace SourceGenerator {
             foreach (string method in UpdateMethods.Where(pair => pair.Key != "").SelectMany(pair => pair.Value)) {
                 if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{method}();");
+                stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
                 addedMethods.Add(method);
             }
 
@@ -160,13 +161,13 @@ namespace SourceGenerator {
             foreach (string method in UpdateAllMethods) {
                 if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{method}();");
+                stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
                 addedMethods.Add(method);
             }
 
             // Notify port value changed
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}NotifyPortValueChanged({property.PortName});");
+                stringBuilder.AppendLine($"{Indent(indentation + 1)}NotifyPortValueChanged({property.PortName});");
             }
 
             return stringBuilder.ToString();
@@ -177,10 +178,9 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(property.Name)) {
                     var getterMethod = GetterMethods[property.Name];
-                    stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : GeneratorUtils.Indent(getterMethod.Body, 3).TrimStart())}");
+                    stringBuilder.AppendLine($"{Indent(indentation + 1)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : Indent(getterMethod.Body, 3).TrimStart())}");
                 } else if (property.CustomGetter) {
-                    stringBuilder.AppendLine(
-                        $"{GeneratorUtils.Indent(indentation + 1)}if (port == {property.PortName}) {{\n{GeneratorUtils.Indent(indentation + 2)}{property.GetterCode}\n{GeneratorUtils.Indent(indentation + 1)}}}");
+                    stringBuilder.AppendLine($"{Indent(indentation + 1)}if (port == {property.PortName}) {{\n{Indent(indentation + 2)}{property.GetterCode.Replace("{indent}", Indent(indentation + 2))}\n{Indent(indentation + 1)}}}");
                 } else {
                     stringBuilder.AppendLine(property.GetGetValueForPortCode(indentation));
                 }
@@ -194,8 +194,7 @@ namespace SourceGenerator {
 
             // Add if (port == outputPortA || ...) return;
             if (Properties.Any(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
-                stringBuilder.AppendLine(
-                    $"{GeneratorUtils.Indent(indentation + 1)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PortName}"))}) return;");
+                stringBuilder.AppendLine($"{Indent(indentation + 1)}if ({string.Join(" || ", Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort).Select(property => $"port == {property.PortName}"))}) return;");
             }
 
             // Add individual ifs joined by ` else `
@@ -205,7 +204,7 @@ namespace SourceGenerator {
                     string propertyNotifyMethods = GetNotifyMethodsFor(property, indentation + 2);
                     return property.GetOnPortValueChangedCode(indentation, propertyCalculateMethods, propertyNotifyMethods);
                 }));
-                stringBuilder.AppendLine($"{GeneratorUtils.Indent(indentation + 1)}{notify}");
+                stringBuilder.AppendLine($"{Indent(indentation + 1)}{notify}");
             }
 
             return stringBuilder.ToString();
@@ -288,7 +287,7 @@ namespace SourceGenerator {
 
                     switch (attributeName) {
                         case "CalculatesProperty": {
-                            string variableName = GeneratorUtils.ExtractNameFromExpression(arguments[0].Expression);
+                            string variableName = ExtractNameFromExpression(arguments[0].Expression);
                             if (string.IsNullOrEmpty(variableName)) continue;
 
                             if (!UpdateMethods.ContainsKey(variableName)) {
@@ -299,7 +298,7 @@ namespace SourceGenerator {
                             break;
                         }
                         case "GetterMethod": {
-                            string propertyName = GeneratorUtils.ExtractNameFromExpression(arguments[0].Expression);
+                            string propertyName = ExtractNameFromExpression(arguments[0].Expression);
                             if (string.IsNullOrEmpty(propertyName)) {
                                 continue;
                             }
@@ -312,7 +311,7 @@ namespace SourceGenerator {
                                 }
                             }
                             
-                            string body = GeneratorUtils.InlineMethod(method);
+                            string body = InlineMethod(method);
                             GetterMethods[propertyName] = new GetterMethod(method.Identifier.Text, inline, body, method.ExpressionBody != null);
 
                             break;
@@ -341,7 +340,7 @@ namespace SourceGenerator {
             foreach (AttributeSyntax attribute in ClassDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.Name.ToString() != "AdditionalUsingStatements" || attribute.ArgumentList == null) continue;
 
-                foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => GeneratorUtils.ExtractStringFromExpression(arg.Expression))) {
+                foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => ExtractStringFromExpression(arg.Expression))) {
                     Usings.Add($"using {@namespace};");
                 }
             }
@@ -352,7 +351,7 @@ namespace SourceGenerator {
         #region Utility methods
 
         private string GetCalculateMethodsFor(GeneratedProperty property, int indent) {
-            string indentString = GeneratorUtils.Indent(indent);
+            string indentString = Indent(indent);
             var stringBuilder = new StringBuilder();
 
             foreach (string method in UpdateAllMethods) {
@@ -382,7 +381,7 @@ namespace SourceGenerator {
         }
 
         private string GetNotifyMethodsFor(GeneratedProperty property, int indent) {
-            string indentString = GeneratorUtils.Indent(indent);
+            string indentString = Indent(indent);
             var stringBuilder = new StringBuilder();
 
             foreach (GeneratedProperty notifiedProperty in Properties.Where(otherProperty => otherProperty.Kind == GeneratedPropertyKind.OutputPort)) {
