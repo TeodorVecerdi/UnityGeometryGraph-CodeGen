@@ -90,7 +90,7 @@ public partial class {1} : RuntimeNode {{
         // 0: indent, 1: pascal case name, 2: field name, 3: equality, 4: calculate methods, 5: notify methods
         // extraCodeBeforeGetValue,  extraCodeAfterGetValue,  extraCodeAfterEqualityCheck,  extraCodeAfterUpdate,  extraCodeAfterCalculate,  extraCodeAfterNotify
         public static string OnPortValueChangedIfTemplate = @"if (port == {1}) {{{6}
-{0}    var newValue = GetValue({1}, {2});{7}{3}{8}
+{0}    var newValue = GetValue(connection, {2});{7}{3}{8}
 {0}    {2} = newValue;{9}{4}{10}{5}{11}
 {0}}}";
     }
