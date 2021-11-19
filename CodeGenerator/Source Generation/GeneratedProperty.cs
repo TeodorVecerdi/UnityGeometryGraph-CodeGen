@@ -28,7 +28,7 @@ namespace SourceGenerator {
         
         // These indicate whether serialization and equality checks are supported for the property type
         public bool GenerateSerialization { get; private set; }
-        public bool GenerateEquality { get; }
+        public bool GenerateEquality { get; private set; }
 
         // You can specify custom serialization code for the property
         public bool CustomSerialization { get; private set; }
@@ -50,6 +50,7 @@ namespace SourceGenerator {
             Name = property.Identifier.Text;
 
             GenerateSerialization = true;
+            GenerateEquality = true;
             GenerateUpdateFromEditorMethod = true;
 
             UpdatesAllProperties = kind is not GeneratedPropertyKind.OutputPort;
@@ -71,7 +72,7 @@ namespace SourceGenerator {
             }
 
             GenerateSerialization = CustomSerialization || GenerateSerialization && CanGenerateSerialization();
-            GenerateEquality = CustomEquality || CanGenerateEquality();
+            GenerateEquality = CustomEquality || GenerateEquality && CanGenerateEquality();
             GenerateUpdateFromEditorMethod = GenerateUpdateFromEditorMethod && CanGenerateUpdateFromEditorMethod();
 
             UppercaseName = GeneratorUtils.CapitalizeName(Name);
@@ -120,6 +121,10 @@ namespace SourceGenerator {
                             } else if (argName == "PortName") {
                                 string portName = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
                                 OverridePortName = portName;
+                            } else if (argName == "GenerateEquality") {
+                                string argValue = argument.Expression.ToString();
+                                if (argValue != "false") continue;
+                                GenerateEquality = false;
                             }
                         }
 
