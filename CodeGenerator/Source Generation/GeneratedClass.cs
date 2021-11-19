@@ -80,7 +80,6 @@ namespace SourceGenerator {
             string updateFromEditorNodeMethods = GetUpdateFromEditorNodeCode().TrimEnd();
             string serialization = GetSerializationCode().TrimEnd();
             string deserialization = GetDeserializationCode().TrimEnd();
-            string postDeserialization = GetPostDeserializationCode().TrimEnd();
             string getValueForPort = GetGetValueForPortCode().TrimEnd();
             string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
             
@@ -345,27 +344,39 @@ namespace SourceGenerator {
         }
 
         private void CollectUsings() {
-            Usings.Add("using System;");
-            Usings.Add("using Newtonsoft.Json;");
-            Usings.Add("using Newtonsoft.Json.Linq;");
+            var usings = new List<string>();
             
             var compilationUnit = ClassDeclarationSyntax.FirstAncestorOrSelf<SyntaxNode>(node => node is CompilationUnitSyntax);
             if (compilationUnit is CompilationUnitSyntax compilation) {
                 foreach (string usingStatement in compilation.Usings.Select(syntax => syntax.ToString())) {
-                    Usings.Add(usingStatement);
+                    usings.Add(usingStatement);
                 }
             }
 
             if (Properties.Any(property => property.Type is "float2" or "float3")) {
-                Usings.Add("using GeometryGraph.Runtime.Serialization;");
+                usings.Add("using GeometryGraph.Runtime.Serialization;");
+            }
+            
+            if (Properties.Any(property => property.Type is "float" or "string")) {
+                usings.Add("using System;");
+            }
+            
+            if (Properties.Any(property => property.GenerateSerialization)) {
+                usings.Add("using Newtonsoft.Json;");
+                usings.Add("using Newtonsoft.Json.Linq;");
             }
 
             foreach (AttributeSyntax attribute in ClassDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.Name.ToString() != "AdditionalUsingStatements" || attribute.ArgumentList == null) continue;
 
                 foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => ExtractStringFromExpression(arg.Expression))) {
-                    Usings.Add($"using {@namespace};");
+                    usings.Add($"using {@namespace};");
                 }
+            }
+
+            usings.Sort();
+            foreach (string @using in usings) {
+                Usings.Add(@using);
             }
         }
 
