@@ -22,9 +22,7 @@ namespace {1} {{
 
         public {2}(string guid) : base(guid) {{
 {4}
-        }}
-
-{7}
+        }}{7}
 
         protected override object GetValueForPort(RuntimePort port) {{
 {8}
@@ -47,9 +45,7 @@ public partial class {1} : RuntimeNode {{
 
     public {1}(string guid) : base(guid) {{
 {3}
-    }}
-
-{6}
+    }}{6}
 
     protected override object GetValueForPort(RuntimePort port) {{
 {7}
@@ -69,12 +65,13 @@ public partial class {1} : RuntimeNode {{
 {0}}}";
         
         // 0: indent, 1: deserialization, 2: update/notify
-        public static string DeserializationTemplate = @"{0}public override void SetCustomData(string data) {{
-{0}    JArray array = JArray.Parse(data);
-{1}
-
+        public static string DeserializationTemplate = @"{0}public override void SetCustomData(string data) {{{1}
 {2}
 {0}}}";
+
+        // 0: indent, 1: deserialization
+        public static string DeserializationLoadTemplate = @"{0}    JArray array = JArray.Parse(data);
+{1}";
 
         // 0: port name
         public static string PortPropertyTemplate = @"public RuntimePort {0} {{ get; }}";

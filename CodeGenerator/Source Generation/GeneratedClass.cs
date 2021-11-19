@@ -125,7 +125,10 @@ namespace SourceGenerator {
                 stringBuilder.AppendLine($"{property.GetUpdateFromEditorNodeMethod(indentation, propertyCalculateMethods, propertyNotifyMethods)}\n");
             }
 
-            return stringBuilder.ToString();
+            string code = stringBuilder.ToString();
+            if (string.IsNullOrEmpty(code)) return "";
+
+            return $"\n\n{code}";
         }
 
         private string GetSerializationCode() {
@@ -135,8 +138,11 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.GenerateSerialization)) {
                 stringBuilder.AppendLine(property.GetSerializationCode(indentation));
             }
+            
+            string code = stringBuilder.ToString().TrimEnd();
+            if (string.IsNullOrEmpty(code)) return "";
 
-            return $"\n\n{string.Format(Templates.SerializationTemplate, Indent(indentation), stringBuilder.ToString().TrimEnd())}";
+            return $"\n\n{string.Format(Templates.SerializationTemplate, Indent(indentation), code)}";
         }
 
         private string GetDeserializationCode() {
@@ -148,8 +154,18 @@ namespace SourceGenerator {
                 stringBuilder.AppendLine(property.GetDeserializationCode(indentation, serializationIndex));
                 serializationIndex++;
             }
+            
+            string code = stringBuilder.ToString().TrimEnd();
+            string postDeserializationCode = GetPostDeserializationCode().TrimEnd();
+            if (string.IsNullOrEmpty(code) && string.IsNullOrEmpty(postDeserializationCode)) return "";
 
-            return $"\n\n{string.Format(Templates.DeserializationTemplate, Indent(indentation), stringBuilder.ToString().TrimEnd(), GetPostDeserializationCode().TrimEnd())}";
+            string deserializationLoadCode = "";
+            if (!string.IsNullOrEmpty(code)) {
+                deserializationLoadCode = $"\n{string.Format(Templates.DeserializationLoadTemplate, Indent(indentation), code)}";
+                postDeserializationCode = $"\n{postDeserializationCode}";
+            }
+
+            return $"\n\n{string.Format(Templates.DeserializationTemplate, Indent(indentation), deserializationLoadCode, postDeserializationCode)}";
         }
 
         private string GetPostDeserializationCode() {
