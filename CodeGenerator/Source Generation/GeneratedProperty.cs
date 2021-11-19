@@ -55,7 +55,10 @@ namespace SourceGenerator {
         public List<string> AdditionalValueChangedCode_AfterCalculate { get; }
         public List<string> AdditionalValueChangedCode_AfterNotify { get; }
 
-        public GeneratedProperty(PropertyDeclarationSyntax property, GeneratedPropertyKind kind) {
+        private GeneratedClass owner;
+
+        public GeneratedProperty(GeneratedClass owner, PropertyDeclarationSyntax property, GeneratedPropertyKind kind) {
+            this.owner = owner;
             Property = property;
             Kind = kind;
             Type = property.Type.ToString();
@@ -297,8 +300,8 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
-                string backingType = GeneratorContext.EnumTypes[Type];
+            if (IsEnum(Type, owner.ClassName)) {
+                string backingType = GetEnumBackingType(Type, owner.ClassName);
                 return $"({backingType}){Name},";
             }
 
@@ -317,8 +320,8 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
-                string backingType = GeneratorContext.EnumTypes[Type];
+            if (IsEnum(Type, owner.ClassName)) {
+                string backingType = GetEnumBackingType(Type, owner.ClassName);
                 return $"{Name} = ({Type}) array.Value<{backingType}>({index});";
             }
 
@@ -337,7 +340,7 @@ namespace SourceGenerator {
             }
 
             // Check if Type (TypeSyntax) is an enum
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+            if (IsEnum(Type, owner.ClassName)) {
                 return $"{Name} == {otherVariableName}";
             }
 
@@ -457,7 +460,7 @@ namespace SourceGenerator {
             if (CustomEquality) return true;
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
 
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+            if (IsEnum(Type, owner.ClassName)) {
                 return true;
             }
 
@@ -477,7 +480,7 @@ namespace SourceGenerator {
         private bool CanGenerateUpdateFromEditorMethod() {
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
 
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+            if (IsEnum(Type, owner.ClassName)) {
                 return true;
             }
 
@@ -498,7 +501,7 @@ namespace SourceGenerator {
             if (CustomSerialization) return true;
             if (Kind == GeneratedPropertyKind.OutputPort) return false;
 
-            if (GeneratorContext.EnumTypes.ContainsKey(Type)) {
+            if (IsEnum(Type, owner.ClassName)) {
                 return true;
             }
 

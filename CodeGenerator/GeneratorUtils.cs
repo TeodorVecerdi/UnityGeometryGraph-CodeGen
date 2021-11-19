@@ -137,5 +137,18 @@ namespace SourceGenerator {
                   .Replace("\\\\", "\\");
             return str;
         }
+
+        public static bool IsEnum(string type, string ownerClassName) {
+            if (GeneratorContext.EnumTypes.ContainsKey(type)) return true;
+            if (GeneratorContext.EnumTypes.ContainsKey($"{ownerClassName}.{type}")) return true;
+            return false;
+        }
+        
+        public static string GetEnumBackingType(string type, string ownerClassName) {
+            if (GeneratorContext.EnumTypes.ContainsKey(type)) return GeneratorContext.EnumTypes[type];
+            if (GeneratorContext.EnumTypes.ContainsKey($"{ownerClassName}.{type}")) return GeneratorContext.EnumTypes[$"{ownerClassName}.{type}"];
+            return null;
+        }
+        
     }
 }

@@ -94,7 +94,16 @@ namespace SourceGenerator {
                     if (eds.BaseList is { Types: { Count: > 0 } }) {
                         baseType = eds.BaseList.Types[0].Type.ToString();
                     }
-                    GeneratorContext.EnumTypes.TryAdd(eds.Identifier.Text, baseType);
+
+                    string enumName = eds.Identifier.Text;
+                    if (eds.Parent is ClassDeclarationSyntax cd) {
+                        enumName = $"{cd.Identifier.Text}.{enumName}";
+                    } else if (eds.Parent is StructDeclarationSyntax sd) {
+                        enumName = $"{sd.Identifier.Text}.{enumName}";
+                    } else if (eds.Parent is InterfaceDeclarationSyntax id) {
+                        enumName = $"{id.Identifier.Text}.{enumName}";
+                    }
+                    GeneratorContext.EnumTypes.TryAdd(enumName, baseType);
                     break;
                 }
                 case ClassDeclarationSyntax cd: {

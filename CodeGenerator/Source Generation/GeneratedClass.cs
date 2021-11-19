@@ -265,7 +265,7 @@ namespace SourceGenerator {
                     .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "In"))
-                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.InputPort))
+                    .Select(property => new GeneratedProperty(this, property, GeneratedPropertyKind.InputPort))
             );
 
             // [Out] properties
@@ -274,7 +274,7 @@ namespace SourceGenerator {
                     .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "Out"))
-                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.OutputPort))
+                    .Select(property => new GeneratedProperty(this, property, GeneratedPropertyKind.OutputPort))
             );
 
             // [Setting] properties
@@ -283,7 +283,7 @@ namespace SourceGenerator {
                     .Where(property => property.AttributeLists
                                          .SelectMany(attrs => attrs.Attributes)
                                          .Any(attr => attr.Name.ToString() == "Setting"))
-                    .Select(property => new GeneratedProperty(property, GeneratedPropertyKind.Setting))
+                    .Select(property => new GeneratedProperty(this, property, GeneratedPropertyKind.Setting))
             );
         }
 

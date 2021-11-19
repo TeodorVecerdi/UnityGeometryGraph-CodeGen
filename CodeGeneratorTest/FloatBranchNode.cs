@@ -15,8 +15,6 @@ namespace GeometryGraph.Runtime.Graph {
         [In] public float IfTrue { get; private set; }
         [In] public float IfFalse { get; private set; }
         [Out] public float Result { get; private set; }
-        private float testA;
-        private float testB;
 
         [GetterMethod(nameof(Result), Inline = true)] 
         private float GetResult() {
