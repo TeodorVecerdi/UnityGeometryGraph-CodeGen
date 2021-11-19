@@ -14,10 +14,11 @@ namespace SourceGenerator {
         public string NamespaceName { get; }
         public string FilePath { get; }
         public string AssemblyName { get; set; }
-        public HashSet<string> Usings { get; set; }
+        public HashSet<string> Usings { get; }
 
-        public string OutputRelativePath { get; }
+        public string OutputRelativePath { get; private set; }
         public bool GenerateSerialization { get; private set; }
+        public bool CalculateDuringDeserialization { get; private set; }
 
         public List<GeneratedProperty> Properties { get; }
         
@@ -25,7 +26,7 @@ namespace SourceGenerator {
         public HashSet<string> UpdateAllMethods { get; }
         public Dictionary<string, GetterMethod> GetterMethods { get; }
 
-        private int indentation = 1;
+        private readonly int indentation = 1;
 
         public GeneratedClass(ClassDeclarationSyntax classDeclarationSyntax) {
             ClassDeclarationSyntax = classDeclarationSyntax;
@@ -43,17 +44,6 @@ namespace SourceGenerator {
             UpdateMethods = new Dictionary<string, HashSet<string>>();
             UpdateAllMethods = new HashSet<string>();
             GetterMethods = new Dictionary<string, GetterMethod>();
-            
-            // Get relative path from [GenerateRuntimeNode] attribute
-            OutputRelativePath = "Generated";
-            foreach (AttributeSyntax attribute in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
-                if (attribute.Name.ToString() != "GenerateRuntimeNode" || attribute.ArgumentList == null) continue;
-                
-                string argName = attribute.ArgumentList.Arguments[0].NameEquals.Name.Identifier.Text;
-                if (argName == "OutputPath") {
-                    OutputRelativePath = ExtractStringFromExpression(attribute.ArgumentList.Arguments[0].Expression);
-                }
-            }
 
             // Loops through all the properties in the class, looking for
             // attributes that indicate that they should be generated. ([In], [Out], [Setting])
@@ -69,7 +59,9 @@ namespace SourceGenerator {
             // Gather information about the class, such as using statements
             CollectUsings();
             
+            OutputRelativePath = "Generated";
             GenerateSerialization = true;
+            CalculateDuringDeserialization = true;
             CollectGeneratorSettings();
         }
 
@@ -171,20 +163,22 @@ namespace SourceGenerator {
             var stringBuilder = new StringBuilder();
             var addedMethods = new HashSet<string>();
 
-            // Add UpdateMethods
-            foreach (string method in UpdateMethods.Where(pair => pair.Key != "").SelectMany(pair => pair.Value)) {
-                if (addedMethods.Contains(method)) continue;
+            if (CalculateDuringDeserialization) {
+                // Add UpdateMethods
+                foreach (string method in UpdateMethods.Where(pair => pair.Key != "").SelectMany(pair => pair.Value)) {
+                    if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
-                addedMethods.Add(method);
-            }
+                    stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
+                    addedMethods.Add(method);
+                }
 
-            // Add UpdateAllMethods
-            foreach (string method in UpdateAllMethods) {
-                if (addedMethods.Contains(method)) continue;
+                // Add UpdateAllMethods
+                foreach (string method in UpdateAllMethods) {
+                    if (addedMethods.Contains(method)) continue;
 
-                stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
-                addedMethods.Add(method);
+                    stringBuilder.AppendLine($"{Indent(indentation + 1)}{method}();");
+                    addedMethods.Add(method);
+                }
             }
 
             // Notify port value changed
@@ -390,10 +384,21 @@ namespace SourceGenerator {
                     if (argument.NameEquals == null) continue;
                     string argName = argument.NameEquals.Name.Identifier.Text;
                     switch (argName) {
+                        case "OutputPath": {
+                            string argValue = ExtractStringFromExpression(argument.Expression);
+                            OutputRelativePath = argValue;
+                            break;
+                        }
                         case "GenerateSerialization": {
                             string argValue = argument.Expression.ToString();
                             if (argValue == "true") continue;
                             GenerateSerialization = false;
+                            break;
+                        }
+                        case "CalculateDuringDeserialization": {
+                            string argValue = argument.Expression.ToString();
+                            if (argValue == "true") continue;
+                            CalculateDuringDeserialization = false;
                             break;
                         }
                     }
