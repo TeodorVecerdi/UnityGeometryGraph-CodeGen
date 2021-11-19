@@ -356,15 +356,17 @@ namespace SourceGenerator {
         }
 
         private string GetOnPortValueChangedCodeImpl(int indentation, string calculate, string notify) {
+            const string otherVariableName = "newValue";
             string equality = "";
             if (GenerateEquality) {
-                equality = $"\n{Indent(indentation + 2)}if({GetEqualityComparisonImpl("newValue")}) return;";
+                equality = $"\n{Indent(indentation + 2)}if({GetEqualityComparisonImpl(otherVariableName)}) return;";
             }
 
             string extraCodeBeforeGetValue = string.Join("\n", AdditionalValueChangedCode_BeforeGetValue.Select(code => {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeBeforeGetValue)) extraCodeBeforeGetValue = $"\n{extraCodeBeforeGetValue}";
@@ -372,6 +374,7 @@ namespace SourceGenerator {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterGetValue)) extraCodeAfterGetValue = $"\n{extraCodeAfterGetValue}";
@@ -379,6 +382,7 @@ namespace SourceGenerator {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterEqualityCheck)) extraCodeAfterEqualityCheck = $"\n{extraCodeAfterEqualityCheck}";
@@ -386,6 +390,7 @@ namespace SourceGenerator {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterUpdate)) extraCodeAfterUpdate = $"\n{extraCodeAfterUpdate}";
@@ -393,6 +398,7 @@ namespace SourceGenerator {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterCalculate)) extraCodeAfterCalculate = $"\n{extraCodeAfterCalculate}";
@@ -400,6 +406,7 @@ namespace SourceGenerator {
                 if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
+                code = code.Replace("{other}", otherVariableName);
                 return $"{Indent(indentation + 2)}{code}";
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterNotify)) extraCodeAfterNotify = $"\n{extraCodeAfterNotify}";
