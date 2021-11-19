@@ -137,6 +137,11 @@ namespace SourceGenerator {
                   .Replace("\\\\", "\\");
             return str;
         }
+        
+        public static string AddSemicolonIfNeeded(string str) {
+            if (!str.EndsWith(";") && !str.TrimStart().StartsWith("//") && !str.TrimEnd().EndsWith("}")) str = $"{str};";
+            return str;
+        }
 
         public static bool IsEnum(string type, string ownerClassName) {
             if (GeneratorContext.EnumTypes.ContainsKey(type)) return true;

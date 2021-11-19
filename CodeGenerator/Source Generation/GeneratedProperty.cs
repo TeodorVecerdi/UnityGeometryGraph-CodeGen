@@ -109,9 +109,18 @@ namespace SourceGenerator {
 
         private void CollectInputAndSettingAttributes() {
             foreach (AttributeSyntax attribute in Property.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
-                if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) continue;
-                SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
+                if (attribute.ArgumentList == null || attribute.ArgumentList.Arguments.Count == 0) {
+                    switch (attribute.Name.ToString()) {
+                        case "UpdatesProperties": {
+                            UpdatesAllProperties = false;
+                            break;
+                        }
+                    }
 
+                    continue;
+                }
+                
+                SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
                 switch (attribute.Name.ToString()) {
                     case "CustomSerialization": {
                         CustomSerialization = true;
@@ -382,7 +391,7 @@ namespace SourceGenerator {
             }
 
             string extraCodeBeforeGetValue = string.Join("\n", AdditionalValueChangedCode_BeforeGetValue.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -390,7 +399,7 @@ namespace SourceGenerator {
             }));
             if (!string.IsNullOrEmpty(extraCodeBeforeGetValue)) extraCodeBeforeGetValue = $"\n{extraCodeBeforeGetValue}";
             string extraCodeAfterGetValue = string.Join("\n", AdditionalValueChangedCode_AfterGetValue.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -398,7 +407,7 @@ namespace SourceGenerator {
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterGetValue)) extraCodeAfterGetValue = $"\n{extraCodeAfterGetValue}";
             string extraCodeAfterEqualityCheck = string.Join("\n", AdditionalValueChangedCode_AfterEqualityCheck.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -406,7 +415,7 @@ namespace SourceGenerator {
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterEqualityCheck)) extraCodeAfterEqualityCheck = $"\n{extraCodeAfterEqualityCheck}";
             string extraCodeAfterUpdate = string.Join("\n", AdditionalValueChangedCode_AfterUpdate.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -414,7 +423,7 @@ namespace SourceGenerator {
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterUpdate)) extraCodeAfterUpdate = $"\n{extraCodeAfterUpdate}";
             string extraCodeAfterCalculate = string.Join("\n", AdditionalValueChangedCode_AfterCalculate.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -422,7 +431,7 @@ namespace SourceGenerator {
             }));
             if (!string.IsNullOrEmpty(extraCodeAfterCalculate)) extraCodeAfterCalculate = $"\n{extraCodeAfterCalculate}";
             string extraCodeAfterNotify = string.Join("\n", AdditionalValueChangedCode_AfterNotify.Select(code => {
-                if (!code.EndsWith(";") && !code.StartsWith("//")) code = $"{code};";
+                code = AddSemicolonIfNeeded(code);
                 code = UnescapeString(code);
                 code = code.Replace("{indent}", Indent(indentation + 2));
                 code = code.Replace("{other}", otherVariableName);
@@ -438,13 +447,13 @@ namespace SourceGenerator {
             string updateValueCode = UpdateValueCode.Trim();
             if (!string.IsNullOrEmpty(updateValueCode)) {
                 updateValueCode = $"\n{Indent(indentation + 2)}{updateValueCode.Replace("{other}", otherVariableName).Replace("{indent}", Indent(indentation + 2))}";
-                if (!updateValueCode.EndsWith(";")) updateValueCode = $"{updateValueCode};";
+                updateValueCode = AddSemicolonIfNeeded(updateValueCode);
             }
             
             string getValueCode = GetValueCode.Trim();
             if (!string.IsNullOrEmpty(getValueCode)) {
                 getValueCode = $"\n{Indent(indentation + 2)}{getValueCode.Replace("{other}", otherVariableName).Replace("{indent}", Indent(indentation + 2)).Replace("{default}", DefaultValue)}";
-                if (!getValueCode.EndsWith(";")) getValueCode = $"{getValueCode};";
+                getValueCode = AddSemicolonIfNeeded(getValueCode);
             }
 
             return string.Format(Templates.OnPortValueChangedIfTemplate, Indent(indentation + 1), PortName, updateValueCode, equality, calculate,
