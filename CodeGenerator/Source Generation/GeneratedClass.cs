@@ -378,6 +378,8 @@ namespace SourceGenerator {
             foreach (string @using in usings) {
                 Usings.Add(@using);
             }
+
+            Usings.Remove("using JetBrains.Annotations;");
         }
 
         private void CollectGeneratorSettings() {
