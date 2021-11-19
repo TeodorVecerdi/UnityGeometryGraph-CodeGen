@@ -15,10 +15,11 @@ namespace SourceGenerator {
         public string UppercaseName { get; }
         public GeneratedPropertyKind Kind { get; }
 
-        // PortType if the property is an In or Out property
+        // Port-specific info about the property
         public PortPropertyType PortType { get; }
         public string PortName { get; }
         public string OverridePortName { get; private set; }
+        public string DefaultValue { get; private set; }
 
         // Optionally, the property can update other properties when it changes its value
         public bool UpdatesAllProperties { get; private set; }
@@ -71,6 +72,8 @@ namespace SourceGenerator {
             AdditionalValueChangedCode_AfterUpdate = new List<string>();
             AdditionalValueChangedCode_AfterCalculate = new List<string>();
             AdditionalValueChangedCode_AfterNotify = new List<string>();
+            
+            DefaultValue = Name;
 
             // Collect specific attributes if the property is an InputPort or Setting
             if (Kind is GeneratedPropertyKind.InputPort or GeneratedPropertyKind.Setting) {
@@ -141,6 +144,9 @@ namespace SourceGenerator {
                                 string argValue = argument.Expression.ToString();
                                 if (argValue != "false") continue;
                                 GenerateEquality = false;
+                            } else if (argName == "DefaultValue") {
+                                string argValue = ExtractStringFromExpression(argument.Expression);
+                                DefaultValue = argValue.Replace("{self}", Name);
                             }
                         }
 
@@ -418,7 +424,7 @@ namespace SourceGenerator {
 
             return string.Format(Templates.OnPortValueChangedIfTemplate, Indent(indentation + 1), PortName, Name, equality, calculate,
                                  notify, extraCodeBeforeGetValue, extraCodeAfterGetValue, extraCodeAfterEqualityCheck, extraCodeAfterUpdate, 
-                                 extraCodeAfterCalculate, extraCodeAfterNotify);
+                                 extraCodeAfterCalculate, extraCodeAfterNotify, DefaultValue);
         }
         
         #endregion
