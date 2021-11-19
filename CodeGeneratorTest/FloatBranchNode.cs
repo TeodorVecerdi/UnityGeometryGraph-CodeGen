@@ -1,6 +1,6 @@
-﻿using SourceGeneratorsExperiment;
+﻿using GeometryGraph.Runtime.Attributes;
 
-namespace SourceGeneratorsExperiment {
+namespace GeometryGraph.Runtime.Graph {
     [GenerateRuntimeNode]
     [AdditionalUsingStatements("SourceGeneratorsExperiment", "GeometryGraph.Runtime.Serialization")]
     public partial class FloatBranchNode {

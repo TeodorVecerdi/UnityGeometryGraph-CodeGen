@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SourceGeneratorsExperiment {
+namespace GeometryGraph.Runtime.Attributes {
     [AttributeUsage(AttributeTargets.Class)]
     public class GenerateRuntimeNodeAttribute: Attribute {
         /// <summary>
