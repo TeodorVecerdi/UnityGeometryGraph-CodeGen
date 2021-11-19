@@ -20,6 +20,7 @@ namespace SourceGenerator {
         public string PortName { get; }
         public string OverridePortName { get; private set; }
         public string DefaultValue { get; private set; }
+        public string UpdateValueCode { get; private set; }
 
         // Optionally, the property can update other properties when it changes its value
         public bool UpdatesAllProperties { get; private set; }
@@ -74,6 +75,7 @@ namespace SourceGenerator {
             AdditionalValueChangedCode_AfterNotify = new List<string>();
             
             DefaultValue = Name;
+            UpdateValueCode = $"{Name} = {{other}};";
 
             // Collect specific attributes if the property is an InputPort or Setting
             if (Kind is GeneratedPropertyKind.InputPort or GeneratedPropertyKind.Setting) {
@@ -147,6 +149,9 @@ namespace SourceGenerator {
                             } else if (argName == "DefaultValue") {
                                 string argValue = ExtractStringFromExpression(argument.Expression);
                                 DefaultValue = argValue.Replace("{self}", Name);
+                            } else if (argName == "UpdateValueCode") {
+                                string argValue = ExtractStringFromExpression(argument.Expression);
+                                UpdateValueCode = argValue.Replace("{self}", Name);
                             }
                         }
 
@@ -422,7 +427,13 @@ namespace SourceGenerator {
             notify = notify.TrimEnd();
             if (!string.IsNullOrEmpty(notify)) notify = $"\n{notify}";
 
-            return string.Format(Templates.OnPortValueChangedIfTemplate, Indent(indentation + 1), PortName, Name, equality, calculate,
+            string updateValueCode = UpdateValueCode.Trim();
+            if (!string.IsNullOrEmpty(updateValueCode)) {
+                updateValueCode = $"\n{Indent(indentation + 2)}{updateValueCode.Replace("{other}", otherVariableName).Replace("{indent}", Indent(indentation + 2))}";
+                if (!updateValueCode.EndsWith(";")) updateValueCode = $"{updateValueCode};";
+            }
+
+            return string.Format(Templates.OnPortValueChangedIfTemplate, Indent(indentation + 1), PortName, updateValueCode, equality, calculate,
                                  notify, extraCodeBeforeGetValue, extraCodeAfterGetValue, extraCodeAfterEqualityCheck, extraCodeAfterUpdate, 
                                  extraCodeAfterCalculate, extraCodeAfterNotify, DefaultValue);
         }
