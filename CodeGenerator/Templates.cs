@@ -86,9 +86,8 @@ public partial class {1} : RuntimeNode {{
 
         // 0: indent, 1: pascal case name, 2: update value code, 3: equality, 4: calculate methods, 5: notify methods
         // 6: extraCodeBeforeGetValue, 7: extraCodeAfterGetValue, 8: extraCodeAfterEqualityCheck, 9: extraCodeAfterUpdate,
-        // 10: extraCodeAfterCalculate, 11: extraCodeAfterNotify, 12: default value
-        public static string OnPortValueChangedIfTemplate = @"if (port == {1}) {{{6}
-{0}    var newValue = GetValue(connection, {12});{7}{3}{8}{2}{9}{4}{10}{5}{11}
+        // 10: extraCodeAfterCalculate, 11: extraCodeAfterNotify, 12: get new value code
+        public static string OnPortValueChangedIfTemplate = @"if (port == {1}) {{{6}{12}{7}{3}{8}{2}{9}{4}{10}{5}{11}
 {0}}}";
     }
 }
