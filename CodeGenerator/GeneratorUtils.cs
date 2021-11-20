@@ -155,5 +155,12 @@ namespace SourceGenerator {
             return null;
         }
         
+        public static string CleanupUsingStatement(string usingStatement) {
+            usingStatement = usingStatement.Trim();
+            if (usingStatement.StartsWith("using")) usingStatement = usingStatement[6..];
+            if (usingStatement.EndsWith(";")) usingStatement = usingStatement[..^1];
+
+            return usingStatement;
+        }
     }
 }

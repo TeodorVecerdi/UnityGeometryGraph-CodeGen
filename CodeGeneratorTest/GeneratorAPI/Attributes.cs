@@ -10,7 +10,28 @@ namespace GeometryGraph.Runtime.Attributes {
         /// <summary>
         /// Specifies where the generated file should be placed relative to the original file.
         /// </summary>
-        public string OutputPath { get; set; }
+        public string OutputRelativePath { get; set; }
+        
+        /// <summary>
+        /// Whether to generate serialization and deserialization methods.<br/>
+        /// Default: <c>true</c>
+        /// </summary>
+        public bool GenerateSerialization { get; set; } = true;
+        
+        /// <summary>
+        /// Whether to run the calculate methods during deserialization.<br/>
+        /// Default: <c>true</c>
+        /// </summary>
+        public bool CalculateDuringDeserialization { get; set; } = true;
+    }
+    
+    [AttributeUsage(AttributeTargets.Assembly)]
+    public class GlobalSettingsAttribute: Attribute {
+        /// <summary>
+        /// Specifies where the generated file should be placed relative to the original file.<br/>
+        /// Default: <c>""</c>
+        /// </summary>
+        public string OutputRelativePath { get; set; } = "";
         
         /// <summary>
         /// Whether to generate serialization and deserialization methods.<br/>
@@ -25,7 +46,8 @@ namespace GeometryGraph.Runtime.Attributes {
         public bool CalculateDuringDeserialization { get; set; } = true;
     }
 
-    [AttributeUsage(AttributeTargets.Class)]
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly, AllowMultiple = true)]
     public class AdditionalUsingStatementsAttribute: Attribute {
         public AdditionalUsingStatementsAttribute(params string[] namespaces) {
         }

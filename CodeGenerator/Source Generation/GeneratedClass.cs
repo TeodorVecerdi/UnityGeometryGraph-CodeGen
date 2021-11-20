@@ -14,7 +14,7 @@ namespace SourceGenerator {
         public string NamespaceName { get; }
         public string FilePath { get; }
         public string AssemblyName { get; set; }
-        public HashSet<string> Usings { get; }
+        public SortedSet<string> Usings { get; }
 
         public string OutputRelativePath { get; private set; }
         public bool GenerateSerialization { get; private set; }
@@ -33,7 +33,8 @@ namespace SourceGenerator {
 
             ClassName = classDeclarationSyntax.Identifier.Text;
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
-            Usings = new HashSet<string>();
+            
+            Usings = new SortedSet<string>(GeneratorContext.GlobalSettings.AdditionalUsingStatements.Select(CleanupUsingStatement));
 
             if (classDeclarationSyntax.Parent is NamespaceDeclarationSyntax) {
                 NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
@@ -59,9 +60,9 @@ namespace SourceGenerator {
             // Gather information about the class, such as using statements
             CollectUsings();
             
-            OutputRelativePath = "Generated";
-            GenerateSerialization = true;
-            CalculateDuringDeserialization = true;
+            OutputRelativePath = GeneratorContext.GlobalSettings.OutputRelativePath;
+            GenerateSerialization = GeneratorContext.GlobalSettings.GenerateSerialization;
+            CalculateDuringDeserialization = GeneratorContext.GlobalSettings.CalculateDuringDeserialization;
             CollectGeneratorSettings();
         }
 
@@ -86,7 +87,7 @@ namespace SourceGenerator {
         #region Code Generation
 
         private string GetUsingStatements() {
-            return string.Join("\n", Usings);
+            return string.Join("\n", Usings.Select(@using => $"using {@using};"));
         }
 
         private string GetPortDeclarationsCode() {
@@ -338,42 +339,35 @@ namespace SourceGenerator {
         }
 
         private void CollectUsings() {
-            var usings = new List<string>();
-            
             var compilationUnit = ClassDeclarationSyntax.FirstAncestorOrSelf<SyntaxNode>(node => node is CompilationUnitSyntax);
             if (compilationUnit is CompilationUnitSyntax compilation) {
-                foreach (string usingStatement in compilation.Usings.Select(syntax => syntax.ToString())) {
-                    usings.Add(usingStatement);
+                foreach (UsingDirectiveSyntax usingDirective in compilation.Usings) {
+                    Usings.Add(usingDirective.Name.ToString());
                 }
             }
 
             if (Properties.Any(property => property.Type is "float2" or "float3")) {
-                usings.Add("using GeometryGraph.Runtime.Serialization;");
+                Usings.Add("GeometryGraph.Runtime.Serialization");
             }
             
             if (Properties.Any(property => property.Type is "float" or "string")) {
-                usings.Add("using System;");
+                Usings.Add("System");
             }
             
             if (Properties.Any(property => property.GenerateSerialization)) {
-                usings.Add("using Newtonsoft.Json;");
-                usings.Add("using Newtonsoft.Json.Linq;");
+                Usings.Add("Newtonsoft.Json");
+                Usings.Add("Newtonsoft.Json.Linq");
             }
 
             foreach (AttributeSyntax attribute in ClassDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attribute.Name.ToString() != "AdditionalUsingStatements" || attribute.ArgumentList == null) continue;
 
                 foreach (string @namespace in attribute.ArgumentList.Arguments.Select(arg => ExtractStringFromExpression(arg.Expression))) {
-                    usings.Add($"using {@namespace};");
+                    Usings.Add(@namespace);
                 }
             }
-
-            usings.Sort();
-            foreach (string @using in usings) {
-                Usings.Add(@using);
-            }
-
-            Usings.Remove("using JetBrains.Annotations;");
+            
+            Usings.Remove("JetBrains.Annotations");
         }
 
         private void CollectGeneratorSettings() {
@@ -384,7 +378,7 @@ namespace SourceGenerator {
                     if (argument.NameEquals == null) continue;
                     string argName = argument.NameEquals.Name.Identifier.Text;
                     switch (argName) {
-                        case "OutputPath": {
+                        case "OutputRelativePath": {
                             string argValue = ExtractStringFromExpression(argument.Expression);
                             OutputRelativePath = argValue;
                             break;

@@ -16,6 +16,7 @@ namespace SourceGenerator {
             GeneratorContext.EnumTypes = new ConcurrentDictionary<string, string>();
             GeneratorContext.GeneratedFiles = new ConcurrentBag<GeneratedFile>();
             GeneratorContext.GeneratedFilesByName = new ConcurrentDictionary<string, GeneratedFile>();
+            GeneratorContext.GlobalSettings = new GeneratorSettings();
 
             context.RegisterForSyntaxNotifications(() => new TypeCollectorSyntaxReceiver());
         }
@@ -48,16 +49,19 @@ namespace SourceGenerator {
                 string sourceCode = generatedClass.GetCode();
                 sourceCode = sourceCode.Replace("[SourceClass(\"{SOURCE_NAME}\")]", $"[SourceClass(\"{qualifiedName}\")]");
                 sourceCode = sourceCode.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
+                sourceCode += $@"/*
+{$"OutputRelativePath: {GeneratorContext.GlobalSettings.OutputRelativePath}; GenerateSerialization: {GeneratorContext.GlobalSettings.GenerateSerialization}; CalculateDuringDeserialization: {GeneratorContext.GlobalSettings.CalculateDuringDeserialization}"}
+*/";
                 File.WriteAllText(destinationPath, sourceCode);
             }
         }
 
         private static void CleanupOldFile(string classQualifiedName, string generatedFilePath) {
             if (!GeneratorContext.GeneratedFilesByName.ContainsKey(classQualifiedName)) return;
-            
+
             GeneratedFile generatedFile = GeneratorContext.GeneratedFilesByName[classQualifiedName];
             if (generatedFile.GeneratedFilePath == generatedFilePath) return;
-            
+
             DeleteSourceAndDirectory(generatedFile);
         }
 
@@ -66,7 +70,7 @@ namespace SourceGenerator {
             foreach (GeneratedClass generatedClass in GeneratorContext.GeneratedClasses) {
                 generatedFiles.Add(GeneratorUtils.GetQualifiedClassName(generatedClass));
             }
-            
+
             foreach (GeneratedFile generatedFile in GeneratorContext.GeneratedFiles) {
                 if (generatedFiles.Contains(generatedFile.SourceClassName)) continue;
 
@@ -89,6 +93,53 @@ namespace SourceGenerator {
     public class TypeCollectorSyntaxReceiver : ISyntaxReceiver {
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode) {
             switch (syntaxNode) {
+                case CompilationUnitSyntax cus: {
+                    foreach (AttributeSyntax attribute in
+                        cus.ChildNodes()
+                           .OfType<AttributeListSyntax>()
+                           .Where(syntax => syntax.Target is { Identifier: { Text: "assembly" } } && syntax.Attributes.Count > 0)
+                           .SelectMany(syntax => syntax.Attributes))
+                    {
+                        if (attribute.ArgumentList is not { Arguments: { Count: not 0 } }) continue;
+                        SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
+                        string attributeName = attribute.Name.ToString();
+                        switch (attributeName) {
+                            case "GlobalSettings": {
+                                foreach (AttributeArgumentSyntax argument in arguments.Where(arg => arg.NameEquals is {})) {
+                                    string argumentName = argument.NameEquals!.Name.ToString();
+                                    switch (argumentName) {
+                                        case "OutputRelativePath": {
+                                            string argumentValue = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                            GeneratorContext.GlobalSettings.OutputRelativePath = argumentValue;
+                                            break;
+                                        }
+                                        case "GenerateSerialization": {
+                                            bool argumentValue = argument.Expression.ToString() == "true";
+                                            GeneratorContext.GlobalSettings.GenerateSerialization = argumentValue;
+                                            break;
+                                        }
+                                        case "CalculateDuringDeserialization": {
+                                            bool argumentValue = argument.Expression.ToString() == "true";
+                                            GeneratorContext.GlobalSettings.CalculateDuringDeserialization = argumentValue;
+                                            break;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            case "AdditionalUsingStatements": {
+                                foreach (AttributeArgumentSyntax argument in arguments) {
+                                    string argumentValue = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                    GeneratorContext.GlobalSettings.AdditionalUsingStatements.Add(argumentValue);
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+
+                    break;
+                }
                 case EnumDeclarationSyntax eds: {
                     string baseType = "int";
                     if (eds.BaseList is { Types: { Count: > 0 } }) {
@@ -103,6 +154,7 @@ namespace SourceGenerator {
                     } else if (eds.Parent is InterfaceDeclarationSyntax id) {
                         enumName = $"{id.Identifier.Text}.{enumName}";
                     }
+
                     GeneratorContext.EnumTypes.TryAdd(enumName, baseType);
                     break;
                 }
@@ -114,6 +166,7 @@ namespace SourceGenerator {
                         GeneratorContext.GeneratedFiles.Add(generatedFile);
                         GeneratorContext.GeneratedFilesByName.TryAdd(generatedFile.SourceClassName, generatedFile);
                     }
+
                     break;
                 }
             }

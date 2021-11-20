@@ -8,5 +8,6 @@ namespace SourceGenerator {
         public static ConcurrentBag<GeneratedFile> GeneratedFiles;
         public static ConcurrentDictionary<string, string> EnumTypes;
         public static ConcurrentDictionary<string, GeneratedFile> GeneratedFilesByName;
+        public static GeneratorSettings GlobalSettings;
     }
 }

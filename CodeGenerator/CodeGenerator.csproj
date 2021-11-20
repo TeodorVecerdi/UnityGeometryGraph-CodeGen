@@ -14,7 +14,7 @@
     </ItemGroup>
     
     <Target Name="Deploy Assembly" AfterTargets="AfterBuild">
-        <Message Text="------- Copying .dll and .pdb to `$(ProjectDir)$(GeometryGraphPluginPath)`" Importance="high"/>
-        <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll;$(TargetDir)$(AssemblyName).pdb" DestinationFolder="$(ProjectDir)$(GeometryGraphPluginPath)" ContinueOnError="true"/>
+        <Message Text="------- Copying .dll and .pdb to `$(ProjectDir)$(GeometryGraphPluginPath)`" Importance="high" />
+        <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll;$(TargetDir)$(AssemblyName).pdb" DestinationFolder="$(ProjectDir)$(GeometryGraphPluginPath)" ContinueOnError="true" />
     </Target>
 </Project>
