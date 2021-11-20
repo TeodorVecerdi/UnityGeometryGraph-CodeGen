@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace SourceGeneratorsExperiment {
+namespace GeometryGraph.Runtime.Graph {
     public class RuntimePort {
         public string Guid;
         public PortType Type;

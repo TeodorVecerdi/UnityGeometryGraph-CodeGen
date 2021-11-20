@@ -1,4 +1,4 @@
-﻿namespace SourceGeneratorsExperiment {
+﻿namespace Unity.Mathematics {
     public static class math {
         public static float distancesq(float3 lhs, float3 rhs) {
             float3 diff = lhs - rhs;

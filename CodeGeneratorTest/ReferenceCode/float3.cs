@@ -1,4 +1,4 @@
-﻿namespace SourceGeneratorsExperiment {
+﻿namespace Unity.Mathematics {
     public record float3(float x, float y, float z) {
         public static float3 operator+(float3 a, float3 b) => new float3(a.x + b.x, a.y + b.y, a.z + b.z);
         public static float3 operator-(float3 a, float3 b) => new float3(a.x - b.x, a.y - b.y, a.z - b.z);

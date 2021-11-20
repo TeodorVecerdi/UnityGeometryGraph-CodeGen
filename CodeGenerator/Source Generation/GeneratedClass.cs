@@ -195,7 +195,7 @@ namespace SourceGenerator {
             foreach (GeneratedProperty property in Properties.Where(property => property.Kind == GeneratedPropertyKind.OutputPort)) {
                 if (GetterMethods.ContainsKey(property.Name)) {
                     var getterMethod = GetterMethods[property.Name];
-                    stringBuilder.AppendLine($"{Indent(indentation + 1)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : Indent(getterMethod.Body, 3).TrimStart())}");
+                    stringBuilder.AppendLine($"{Indent(indentation + 1)}if (port == {property.PortName}) {(!getterMethod.Inline ? $"return {getterMethod.MethodName}();": getterMethod.HasExpressionBody ? $"return {getterMethod.Body};" : Indent(getterMethod.Body, indentation + 2).TrimStart())}");
                 } else if (property.CustomGetter) {
                     stringBuilder.AppendLine($"{Indent(indentation + 1)}if (port == {property.PortName}) {{\n{Indent(indentation + 2)}{property.GetterCode.Replace("{indent}", Indent(indentation + 2))}\n{Indent(indentation + 1)}}}");
                 } else {

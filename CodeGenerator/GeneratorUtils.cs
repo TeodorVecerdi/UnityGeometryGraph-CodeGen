@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -161,6 +164,11 @@ namespace SourceGenerator {
             if (usingStatement.EndsWith(";")) usingStatement = usingStatement[..^1];
 
             return usingStatement;
+        }
+
+        private static readonly List<char> invalidCharacters = Path.GetInvalidFileNameChars().Union(Path.GetInvalidPathChars()).Union(new char[] {'#', '<', '>', '#', '+', '%', '!', '`', '&', '*', '\'', '"', '|', '{', '}', '?', '=', '/', ':', '\\', '@', ';'}).ToList();
+        public static string RemoveInvalidPathCharacters(string path) {
+            return new string(path.Where(c => !invalidCharacters.Contains(c)).ToArray());
         }
     }
 }

@@ -6,5 +6,6 @@ namespace SourceGenerator {
         public bool GenerateSerialization { get; set; }          = true;
         public bool CalculateDuringDeserialization { get; set; } = true;
         public List<string> AdditionalUsingStatements { get; }   = new();
+        public string OutputFileNamePattern { get; set; }        = "{fileName}.gen.{extension}";
     }
 }

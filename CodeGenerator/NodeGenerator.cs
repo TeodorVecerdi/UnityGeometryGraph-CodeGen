@@ -35,9 +35,29 @@ namespace SourceGenerator {
 
                 // Output path
                 string filePath = generatedClass.FilePath;
-                string directory = filePath.Substring(0, filePath.LastIndexOf('\\') + 1);
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                string extension = Path.GetExtension(filePath);
+                if (!string.IsNullOrEmpty(extension)) extension = extension.Substring(1);
+
+                string directory = new FileInfo(filePath).Directory!.FullName;
                 string destinationDirectory = Path.Combine(directory, generatedClass.OutputRelativePath);
-                string destinationPath = Path.Combine(destinationDirectory, $"{generatedClass.ClassName}.gen.cs");
+                string destinationFileName = GeneratorContext.GlobalSettings.OutputFileNamePattern;
+                destinationFileName = destinationFileName
+                                      .Replace("{fileName}", fileName)
+                                      .Replace("{className}", generatedClass.ClassName)
+                                      .Replace("{extension}", extension)
+                                      .Replace("{namespace}", generatedClass.NamespaceName);
+                destinationFileName = GeneratorUtils.RemoveInvalidPathCharacters(destinationFileName);
+
+                if (destinationFileName == "" || (destinationFileName == Path.GetFileName(filePath) && directory == destinationDirectory)) {
+                    destinationFileName = $"{fileName}.gen.{extension}";
+                }
+
+                if (Path.GetExtension(destinationFileName) == "") {
+                    destinationFileName += extension;
+                }
+
+                string destinationPath = Path.Combine(destinationDirectory, destinationFileName);
 
                 if (!Directory.Exists(destinationDirectory)) {
                     Directory.CreateDirectory(destinationDirectory);
@@ -49,9 +69,6 @@ namespace SourceGenerator {
                 string sourceCode = generatedClass.GetCode();
                 sourceCode = sourceCode.Replace("[SourceClass(\"{SOURCE_NAME}\")]", $"[SourceClass(\"{qualifiedName}\")]");
                 sourceCode = sourceCode.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
-                sourceCode += $@"/*
-{$"OutputRelativePath: {GeneratorContext.GlobalSettings.OutputRelativePath}; GenerateSerialization: {GeneratorContext.GlobalSettings.GenerateSerialization}; CalculateDuringDeserialization: {GeneratorContext.GlobalSettings.CalculateDuringDeserialization}"}
-*/";
                 File.WriteAllText(destinationPath, sourceCode);
             }
         }
@@ -98,14 +115,13 @@ namespace SourceGenerator {
                         cus.ChildNodes()
                            .OfType<AttributeListSyntax>()
                            .Where(syntax => syntax.Target is { Identifier: { Text: "assembly" } } && syntax.Attributes.Count > 0)
-                           .SelectMany(syntax => syntax.Attributes))
-                    {
+                           .SelectMany(syntax => syntax.Attributes)) {
                         if (attribute.ArgumentList is not { Arguments: { Count: not 0 } }) continue;
                         SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attribute.ArgumentList.Arguments;
                         string attributeName = attribute.Name.ToString();
                         switch (attributeName) {
                             case "GlobalSettings": {
-                                foreach (AttributeArgumentSyntax argument in arguments.Where(arg => arg.NameEquals is {})) {
+                                foreach (AttributeArgumentSyntax argument in arguments.Where(arg => arg.NameEquals is { })) {
                                     string argumentName = argument.NameEquals!.Name.ToString();
                                     switch (argumentName) {
                                         case "OutputRelativePath": {
@@ -123,8 +139,14 @@ namespace SourceGenerator {
                                             GeneratorContext.GlobalSettings.CalculateDuringDeserialization = argumentValue;
                                             break;
                                         }
+                                        case "OutputFileNamePattern": {
+                                            string argumentValue = GeneratorUtils.ExtractStringFromExpression(argument.Expression);
+                                            GeneratorContext.GlobalSettings.OutputFileNamePattern = argumentValue;
+                                            break;
+                                        }
                                     }
                                 }
+
                                 break;
                             }
                             case "AdditionalUsingStatements": {
