@@ -15,6 +15,7 @@ namespace SourceGenerator {
         public string FilePath { get; }
         public string AssemblyName { get; set; }
         public SortedSet<string> Usings { get; }
+        public SortedSet<(string Alias, string AliasOf)> AliasUsings { get; }
 
         public string OutputRelativePath { get; private set; }
         public bool GenerateSerialization { get; private set; }
@@ -35,6 +36,10 @@ namespace SourceGenerator {
             FilePath = classDeclarationSyntax.SyntaxTree.FilePath;
             
             Usings = new SortedSet<string>(GeneratorContext.GlobalSettings.AdditionalUsingStatements.Select(CleanupUsingStatement));
+            AliasUsings = new SortedSet<(string Alias, string AliasOf)>(Comparer<(string Alias, string AliasOf)>.Create((a, b) => {
+                int compareAlias = string.Compare(a.Alias, b.Alias, StringComparison.InvariantCulture);
+                return compareAlias != 0 ? compareAlias : string.Compare(a.AliasOf, b.AliasOf, StringComparison.InvariantCulture);
+            }));
 
             if (classDeclarationSyntax.Parent is NamespaceDeclarationSyntax) {
                 NamespaceName = classDeclarationSyntax.Parent.ToString().Split(' ')[1];
@@ -87,7 +92,12 @@ namespace SourceGenerator {
         #region Code Generation
 
         private string GetUsingStatements() {
-            return string.Join("\n", Usings.Select(@using => $"using {@using};"));
+            string usingStatements = string.Join("\n", Usings.Select(@using => $"using {@using};"));
+            string aliasUsingStatements = string.Join("\n", AliasUsings.Select(@using => $"using {@using.Alias} = {@using.AliasOf};"));
+            if (!string.IsNullOrEmpty(usingStatements) && !string.IsNullOrEmpty(aliasUsingStatements)) {
+                aliasUsingStatements = $"\n{aliasUsingStatements}";
+            }
+            return string.Join("\n", usingStatements, aliasUsingStatements);
         }
 
         private string GetPortDeclarationsCode() {
@@ -342,7 +352,11 @@ namespace SourceGenerator {
             var compilationUnit = ClassDeclarationSyntax.FirstAncestorOrSelf<SyntaxNode>(node => node is CompilationUnitSyntax);
             if (compilationUnit is CompilationUnitSyntax compilation) {
                 foreach (UsingDirectiveSyntax usingDirective in compilation.Usings) {
-                    Usings.Add(usingDirective.Name.ToString());
+                    if (usingDirective.Alias != null) {
+                        AliasUsings.Add((usingDirective.Alias.Name.ToString(), usingDirective.Name.ToString()));
+                    } else {
+                        Usings.Add(usingDirective.Name.ToString());
+                    }
                 }
             }
 
