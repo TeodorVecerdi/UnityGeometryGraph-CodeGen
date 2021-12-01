@@ -33,12 +33,9 @@ namespace GeometryGraph.Runtime.Graph {
         protected virtual void OnConnectionRemoved(Connection connection, RuntimePort port) {
         }
 
-        public virtual string GetCustomData() {
-            return string.Empty;
-        }
-
-        public virtual void SetCustomData(string json) {
-        }
+        public virtual string Serialize() => string.Empty;
+        public virtual void Deserialize(string json) { }
+        public virtual void OnAfterDeserialize() { }
 
         public void NotifyConnectionCreated(Connection connection, RuntimePort port) {
             if (port.Direction != PortDirection.Input) return;

@@ -78,15 +78,16 @@ namespace SourceGenerator {
             string updateFromEditorNodeMethods = GetUpdateFromEditorNodeCode().TrimEnd();
             string serialization = GetSerializationCode().TrimEnd();
             string deserialization = GetDeserializationCode().TrimEnd();
+            string afterDeserialization = GetAfterDeserializationCode().TrimEnd();
             string getValueForPort = GetGetValueForPortCode().TrimEnd();
             string onPortValueChanged = GetOnPortValueChangedCode().TrimEnd();
             
             if (string.IsNullOrEmpty(NamespaceName)) {
                 return string.Format(Templates.ClassTemplateNoNamespace, usingStatements, ClassName, portDeclarations, portInitializers, serialization, 
-                                     deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
+                                     deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged, afterDeserialization);
             }
             return string.Format(Templates.ClassTemplate, usingStatements, NamespaceName, ClassName, portDeclarations, portInitializers, serialization, 
-                                 deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged);
+                                 deserialization, updateFromEditorNodeMethods, getValueForPort, onPortValueChanged, afterDeserialization);
         }
 
         #region Code Generation
@@ -158,16 +159,19 @@ namespace SourceGenerator {
             }
             
             string code = stringBuilder.ToString().TrimEnd();
+            if (string.IsNullOrEmpty(code)) return "";
+
+            string deserializationLoadCode = $"\n{string.Format(Templates.DeserializationLoadTemplate, Indent(indentation), code)}";
+            return $"\n\n{string.Format(Templates.DeserializationTemplate, Indent(indentation), deserializationLoadCode)}";
+        }
+
+        private string GetAfterDeserializationCode() {
+            if (!GenerateSerialization) return "";
+            
             string postDeserializationCode = GetPostDeserializationCode().TrimEnd();
-            if (string.IsNullOrEmpty(code) && string.IsNullOrEmpty(postDeserializationCode)) return "";
-
-            string deserializationLoadCode = "";
-            if (!string.IsNullOrEmpty(code)) {
-                deserializationLoadCode = $"\n{string.Format(Templates.DeserializationLoadTemplate, Indent(indentation), code)}";
-                postDeserializationCode = $"\n{postDeserializationCode}";
-            }
-
-            return $"\n\n{string.Format(Templates.DeserializationTemplate, Indent(indentation), deserializationLoadCode, postDeserializationCode)}";
+            if (string.IsNullOrEmpty(postDeserializationCode)) return "";
+            postDeserializationCode = $"\n{postDeserializationCode}";
+            return $"\n\n{string.Format(Templates.OnAfterDeserializeTemplate, Indent(indentation), postDeserializationCode)}";
         }
 
         private string GetPostDeserializationCode() {

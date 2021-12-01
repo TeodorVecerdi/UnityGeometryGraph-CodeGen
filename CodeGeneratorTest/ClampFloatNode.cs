@@ -68,7 +68,7 @@ namespace SourceGeneratorsExperiment {
             }
         }
 
-        public override string GetCustomData() {
+        public override string Serialize() {
             var data = new JObject {
                 ["i"] = inputValue,
                 ["m"] = minValue,
@@ -77,13 +77,16 @@ namespace SourceGeneratorsExperiment {
             return data.ToString(Formatting.None);
         }
 
-        public override void SetCustomData(string json) {
+        public override void Deserialize(string json) {
             if (string.IsNullOrEmpty(json)) return;
 
             var data = JObject.Parse(json);
             inputValue = data.Value<float>("i");
             minValue = data.Value<float>("m");
             maxValue = data.Value<float>("M");
+        }
+
+        public override void OnAfterDeserialize() {
             NotifyPortValueChanged(ResultPort);
         }
 
