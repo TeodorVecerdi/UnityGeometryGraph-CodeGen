@@ -535,6 +535,7 @@ namespace SourceGenerator {
                 case "GeometryData":
                 case "List<GeometryData>":
                 case "CurveData":
+                case "InstancedGeometryData":
                     return false;
 
                 default: return true;
@@ -602,6 +603,7 @@ namespace SourceGenerator {
         Collection,
         String,
         Curve,
+        Instances,
 
         Unknown = int.MaxValue
     }

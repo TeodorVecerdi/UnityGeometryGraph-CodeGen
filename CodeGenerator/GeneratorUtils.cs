@@ -74,6 +74,7 @@ namespace SourceGenerator {
                 case "List<GeometryData>": return PortPropertyType.Collection;
                 case "string":             return PortPropertyType.String;
                 case "CurveData":          return PortPropertyType.Curve;
+                case "InstancedGeometryData": return PortPropertyType.Instances;
                 default: return PortPropertyType.Unknown;
             }
         }
