@@ -23,14 +23,14 @@
                     return Array.Empty<T>();
                 }
 
-                var dest = new T[length];
+                T[] dest = new T[length];
                 Array.Copy(array, offset, dest, 0, length);
                 return dest;
             }
             else
             {
                 // The array is actually a U[] where U:T.
-                var dest = (T[])Array.CreateInstance(array.GetType().GetElementType(), length);
+                T[] dest = (T[])Array.CreateInstance(array.GetType().GetElementType(), length);
                 Array.Copy(array, offset, dest, 0, length);
                 return dest;
             }

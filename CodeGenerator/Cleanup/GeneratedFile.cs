@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SourceGenerator {
@@ -11,7 +12,7 @@ namespace SourceGenerator {
             foreach (AttributeSyntax attributeSyntax in classDeclarationSyntax.AttributeLists.SelectMany(attrs => attrs.Attributes)) {
                 if (attributeSyntax.Name.ToString() != "SourceClass")continue;
                 
-                var arguments = attributeSyntax.ArgumentList.Arguments;
+                SeparatedSyntaxList<AttributeArgumentSyntax> arguments = attributeSyntax.ArgumentList.Arguments;
                 SourceClassName = GeneratorUtils.ExtractStringFromExpression(arguments[0].Expression);
                 break;
             }

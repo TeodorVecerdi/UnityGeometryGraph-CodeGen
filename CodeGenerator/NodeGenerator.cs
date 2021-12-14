@@ -29,7 +29,7 @@ namespace SourceGenerator {
         private static void Generate(GeneratorExecutionContext context) {
             GeneratorContext.GeneratedClasses = new ConcurrentBag<GeneratedClass>();
             foreach (ClassDeclarationSyntax nodeType in GeneratorContext.NodeTypes) {
-                var generatedClass = new GeneratedClass(nodeType);
+                GeneratedClass generatedClass = new GeneratedClass(nodeType);
                 generatedClass.AssemblyName = context.Compilation.AssemblyName;
                 GeneratorContext.GeneratedClasses.Add(generatedClass);
 
@@ -83,7 +83,7 @@ namespace SourceGenerator {
         }
 
         private static void CleanupOldFiles() {
-            var generatedFiles = new HashSet<string>();
+            HashSet<string> generatedFiles = new HashSet<string>();
             foreach (GeneratedClass generatedClass in GeneratorContext.GeneratedClasses) {
                 generatedFiles.Add(GeneratorUtils.GetQualifiedClassName(generatedClass));
             }
@@ -184,7 +184,7 @@ namespace SourceGenerator {
                     if (cd.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "GenerateRuntimeNode")))
                         GeneratorContext.NodeTypes.Add(cd);
                     else if (cd.AttributeLists.Any(a => a.Attributes.Any(a2 => a2.Name.ToString() == "SourceClass"))) {
-                        var generatedFile = new GeneratedFile(cd);
+                        GeneratedFile generatedFile = new GeneratedFile(cd);
                         GeneratorContext.GeneratedFiles.Add(generatedFile);
                         GeneratorContext.GeneratedFilesByName.TryAdd(generatedFile.SourceClassName, generatedFile);
                     }

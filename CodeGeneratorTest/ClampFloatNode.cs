@@ -48,19 +48,19 @@ namespace SourceGeneratorsExperiment {
         protected override void OnPortValueChanged(Connection connection, RuntimePort port) {
             if (port == ResultPort) return;
             if (port == InputPort) {
-                var newValue = GetValue(InputPort, inputValue);
+                float newValue = GetValue(InputPort, inputValue);
                 if (Math.Abs(newValue - inputValue) > 0.000001f) {
                     inputValue = newValue;
                     NotifyPortValueChanged(ResultPort);
                 }
             } else if (port == MinPort) {
-                var newValue = GetValue(MinPort, minValue);
+                float newValue = GetValue(MinPort, minValue);
                 if (Math.Abs(newValue - minValue) > 0.000001f) {
                     minValue = newValue;
                     NotifyPortValueChanged(ResultPort);
                 }
             } else if (port == MaxPort) {
-                var newValue = GetValue(MaxPort, maxValue);
+                float newValue = GetValue(MaxPort, maxValue);
                 if (Math.Abs(newValue - maxValue) > 0.000001f) {
                     maxValue = newValue;
                     NotifyPortValueChanged(ResultPort);
@@ -69,7 +69,7 @@ namespace SourceGeneratorsExperiment {
         }
 
         public override string Serialize() {
-            var data = new JObject {
+            JObject data = new JObject {
                 ["i"] = inputValue,
                 ["m"] = minValue,
                 ["M"] = maxValue
@@ -80,7 +80,7 @@ namespace SourceGeneratorsExperiment {
         public override void Deserialize(string json) {
             if (string.IsNullOrEmpty(json)) return;
 
-            var data = JObject.Parse(json);
+            JObject data = JObject.Parse(json);
             inputValue = data.Value<float>("i");
             minValue = data.Value<float>("m");
             maxValue = data.Value<float>("M");
